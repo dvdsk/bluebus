@@ -4,8 +4,9 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use rumble::api::{BDAddr, Central, Peripheral, ValueNotification, UUID};
-use rumble::bluez::{adapter::ConnectedAdapter, manager::Manager};
+use btleplug::api::{BDAddr, Central, Peripheral, ValueNotification, UUID};
+use btleplug::bluez::{adapter::ConnectedAdapter, manager::Manager};
+use simplelog::{SimpleLogger, LevelFilter, Config, ConfigBuilder};
 
 fn get_central(manager: &Manager) -> ConnectedAdapter {
     let adapters = manager.adapters().unwrap();
@@ -13,12 +14,23 @@ fn get_central(manager: &Manager) -> ConnectedAdapter {
     adapter.connect().unwrap()
 }
 
-const char_uuid: UUID = UUID::B128([
-    132, 0, 153, 220, 231, 245, 91, 152, 153, 21, 183, 27, 175, 191, 112, 148,
-]);
-const target_dev: BDAddr = BDAddr {
+const BASE_UUID: [u8;16] = [
+    131, 20, 153, 220, 231, 245, 91, 152, 153, 21, 183, 27, 175, 191, 112, 147
+];
+const TARGET_DEV: BDAddr = BDAddr {
     address: [0x4C, 0x2C, 0xAC, 0x56, 0x46, 0xC6],
 }; //reverse of what is normally displayed
+
+//matches the nrf api approch
+fn char_uuid_from(base: [u8; 16], service: u16) -> UUID {
+    let mut final_uuid = [0u8; 16];
+    final_uuid = base;
+    //let service = service.to_be_bytes();
+    let service = service.to_le_bytes();
+    final_uuid[12] = service[0];
+    final_uuid[13] = service[1];
+    UUID::B128(final_uuid)
+}
 
 pub fn handle_notify(notification: ValueNotification, tx: mpsc::Sender<Vec<u8>>) {
     dbg!("handling notify");
@@ -32,6 +44,12 @@ fn read_be_u32(input: &mut &[u8]) -> u32 {
 }
 
 pub fn main() {
+
+    let config = ConfigBuilder::new()
+        .add_filter_ignore_str("btleplug::bluez::adapter")
+        .build();
+    let _ = SimpleLogger::init(LevelFilter::Trace, config);
+
     let (tx, rx) = mpsc::channel();
     let manager = Manager::new().unwrap();
 
@@ -58,32 +76,29 @@ pub fn main() {
         .peripherals()
         .into_iter()
         //.inspect(|p| println!("{:?}", p.properties().address))
-        .find(|p| p.properties().address == target_dev)
+        .find(|p| p.properties().address == TARGET_DEV)
         .unwrap();
 
     // connect to the device
-    dbg!(&sensor);
     sensor.connect().unwrap();
-    dbg!(&sensor);
 
     // discover characteristics
     sensor.discover_characteristics().unwrap();
 
-    //let char_uuid = UUID::from_str("93:70:00:85:1B:B7:15:99:98:5B:F5:E7:DC:99:14:83").unwrap();
     // find the characteristic we want
-    let chars = sensor.characteristics();
-    dbg!(&char_uuid);
-    dbg!(&chars);
+    let char_uuid = char_uuid_from(BASE_UUID, 42);
+    let chars = dbg!(sensor.characteristics());
+    dbg!(char_uuid);
     let test_char = chars
         .iter()
         .inspect(|x| println!("{}", x.uuid))
         .find(|c| c.uuid == char_uuid)
         .unwrap();
-    dbg!();
+    dbg!(&test_char);
     sensor.on_notification(Box::new(move |value| handle_notify(value, tx.clone())));
-    dbg!();
+    dbg!("trying to subscribe");
     sensor.subscribe(&test_char).unwrap();
-    dbg!();
+    dbg!("subscribed succesfully");
     let mut prev_numb = None;
     let numb = loop {
         dbg!("loop loop");
