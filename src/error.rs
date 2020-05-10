@@ -4,7 +4,7 @@ use super::BleBuilder;
 #[derive(Debug)]
 pub enum Error {
     DbusConnectionError(rustbus::client_conn::Error),
-    CouldNotConnect,
+    CouldNotConnect(String),
     UuidNotFound,
     DeviceNotFound,
     CharacteristicNotFound,
@@ -19,8 +19,8 @@ impl From<rustbus::client_conn::Error> for Error {
     }
 }
 impl<'a> From<rustbus::message::Message<'a,'a>> for Error {
-    fn from(_: rustbus::message::Message<'a,'a>) -> Error {
-        Error::CouldNotConnect
+    fn from(msg: rustbus::message::Message<'a,'a>) -> Error {
+        Error::CouldNotConnect(format!("{:?}",msg))
     }
 }
 

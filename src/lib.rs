@@ -10,7 +10,7 @@ mod experiments;
 mod error;
 use error::{Error, to_error, ErrorContext};
 mod dbus_helpers;
-use dbus_helpers::{unwrap_container, unwrap_variant, unwrap_dict, unwrap_string, unwrap_objectpath, unwrap_base};
+use dbus_helpers::{unwrap_bool, unwrap_container, unwrap_variant, unwrap_dict, unwrap_string, unwrap_objectpath, unwrap_base};
 //idea:
 // -simple, no auth or pairing supported
 // no need to explicitly connect
@@ -72,15 +72,15 @@ impl<'a> Ble<'a> {
             .with_interface("org.bluez.Device1".into()) //is always Device1
             .build();
 
-        let response_serial = self.connection.send_message(&mut connect, TIMEOUT).unwrap();
-        let msg = self.connection.wait_response(response_serial, TIMEOUT).unwrap();
+        let response_serial = self.connection.send_message(&mut connect, TIMEOUT)?;
+        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
         
         match msg.typ {
             rustbus::message::MessageType::Reply => Ok(()),
             rustbus::message::MessageType::Error => Err(Error::from(msg)),
             _ => { 
-                let dbg_str = format!("Connect can only be awnserd 
-                    with Error or Reply however we got: {:?}", &msg);
+                let dbg_str = format!("Unexpected Dbus message, Connect should only 
+                    be awnserd with Error or Reply however we got: {:?}", &msg);
                 dbg!(&dbg_str);
                 panic!();
             }
@@ -98,8 +98,8 @@ impl<'a> Ble<'a> {
             .with_interface("org.bluez.Device1".into()) //is always Device1
             .build();
 
-        let response_serial = self.connection.send_message(&mut connect, TIMEOUT).unwrap();
-        let msg = self.connection.wait_response(response_serial, TIMEOUT).unwrap();
+        let response_serial = self.connection.send_message(&mut connect, TIMEOUT)?;
+        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
         
         match msg.typ {
             rustbus::message::MessageType::Reply => Ok(()),
@@ -114,21 +114,29 @@ impl<'a> Ble<'a> {
     }
 
     #[allow(dead_code)]
-    pub fn is_connected(&mut self, adress: impl AsRef<str>)
+    pub fn is_connected(&mut self, adress: impl Into<String>)
      -> Result<bool, Error>{
 
-        let mut isConnected = MessageBuilder::new()
+        let adress = adress.into().replace(":","_");
+        let mut is_connected = MessageBuilder::new()
             .call("Get".into())
             .at("org.bluez".into())
-            .on(format!("/org/bluez/hci{}/dev_{}",self.adapter_numb, adress.as_ref()))
+            .on(format!("/org/bluez/hci{}/dev_{}",self.adapter_numb, &adress))
             .with_interface("org.freedesktop.DBus.Properties".into()); //is always Device1
-            isConnected.add_param2("org.bluez.Device1","Connected");
-        let mut isConnected = isConnected.build();
-        
-        let response_serial = self.connection.send_message(&mut isConnected, TIMEOUT).unwrap();
-        let reply = self.connection.wait_response(response_serial, TIMEOUT).unwrap();
-        dbg!(reply);
-        Ok(true)
+            is_connected.add_param2("org.bluez.Device1","Connected");
+        let mut is_connected = is_connected.build();
+
+        let response_serial = self.connection.send_message(&mut is_connected, TIMEOUT)?;
+        let mut reply = self.connection.wait_response(response_serial, TIMEOUT)?;
+
+        let param = reply.params.pop().unwrap();
+        let container = unwrap_container(param).unwrap();
+        let variant = unwrap_variant(container).unwrap();
+        let param = variant.value;
+        let base = unwrap_base(param).unwrap();
+        let connected = unwrap_bool(base).unwrap();
+
+        Ok(connected)
     }
 
     #[allow(dead_code)]
@@ -147,8 +155,8 @@ impl<'a> Ble<'a> {
 
         dbg!(&aquire_notify);
 
-        let response_serial = self.connection.send_message(&mut aquire_notify, TIMEOUT).unwrap();
-        let reply = self.connection.wait_response(response_serial, TIMEOUT).unwrap();
+        let response_serial = self.connection.send_message(&mut aquire_notify, TIMEOUT)?;
+        let reply = self.connection.wait_response(response_serial, TIMEOUT)?;
         match &reply.typ {
             rustbus::message::MessageType::Error => 
                 return Err(to_error(reply, ErrorContext::AquireNotify(char_path))),
@@ -172,8 +180,8 @@ impl<'a> Ble<'a> {
             .with_interface("org.freedesktop.DBus.ObjectManager".into())
             .build();
         
-        let response_serial = self.connection.send_message(&mut get_paths, TIMEOUT).unwrap();
-        let mut reply = self.connection.wait_response(response_serial, TIMEOUT).unwrap();
+        let response_serial = self.connection.send_message(&mut get_paths, TIMEOUT)?;
+        let mut reply = self.connection.wait_response(response_serial, TIMEOUT)?;
 
         let param = reply.params.pop().unwrap();
         let container = unwrap_container(param).unwrap();

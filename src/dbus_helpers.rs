@@ -16,6 +16,14 @@ pub fn unwrap_string(base: rustbus::params::Base)
     }
 } 
 
+pub fn unwrap_bool(base: rustbus::params::Base)
+ -> Option<bool> {
+    match base {
+        rustbus::params::Base::Boolean(b) => Some(b),
+        _ => None,
+    }
+} 
+
 pub fn unwrap_objectpath<'a, 'e>(tup: (rustbus::Base, rustbus::Param<'a, 'e>))
  -> Option<(String,rustbus::Param<'a, 'e>)> { 
     let (base, param) = tup;
