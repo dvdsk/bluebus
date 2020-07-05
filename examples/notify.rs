@@ -7,9 +7,9 @@ fn main() {
     ble.connect("C6:46:56:AC:2C:4C").unwrap();
     dbg!(ble.is_connected("C6:46:56:AC:2C:4C").unwrap());
 
-    //ble.notify("C6_46_56_AC_2C_4C","9370002a-1bb7-1599-985b-f5e7dc991483").unwrap();
+    ble.notify("C6_46_56_AC_2C_4C","9370002a-1bb7-1599-985b-f5e7dc991483").unwrap();
 
-    sleep(Duration::from_secs(10));
-    ble.disconnect("C6:46:56:AC:2C:4C").unwrap();
-    dbg!(ble.is_connected("C6:46:56:AC:2C:4C").unwrap());
+    sleep(Duration::from_secs(90));
+    //ble.disconnect("C6:46:56:AC:2C:4C").unwrap();
+    //dbg!(ble.is_connected("C6:46:56:AC:2C:4C").unwrap());
 }

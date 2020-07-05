@@ -1,11 +1,12 @@
 use rustbus::{get_system_bus_path, MessageBuilder, Conn, RpcConn, standard_messages};
+use rustbus::client_conn::Timeout;
 
 pub fn exp() -> Result<(), rustbus::client_conn::Error> {
     let session_path = get_system_bus_path()?;
     let con = Conn::connect_to_bus(session_path, true)?;
     let mut rpc_con = RpcConn::new(con);
     // send the obligatory hello message
-    rpc_con.send_message(&mut standard_messages::hello(), None)?;
+    rpc_con.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
 
 
     let mut test_msg = MessageBuilder::new()
@@ -17,11 +18,11 @@ pub fn exp() -> Result<(), rustbus::client_conn::Error> {
         .build();
 
     println!("Send message: {:?}", test_msg);
-    let response_serial = rpc_con.send_message(&mut test_msg, None)?;
+    let response_serial = rpc_con.send_message(&mut test_msg, Timeout::Infinite)?;
 
     println!("\n");
     println!("Wait for start discovery");
-    let msg = rpc_con.wait_response(response_serial, None)?;
+    let msg = rpc_con.wait_response(response_serial, Timeout::Infinite)?;
     println!("Got response: {:?}", msg);
 
 /////////////////////////////////////////////////////////////////////////
@@ -35,11 +36,11 @@ pub fn exp() -> Result<(), rustbus::client_conn::Error> {
     .build();
 
     println!("Send message: {:?}", test_msg);
-    let response_serial = rpc_con.send_message(&mut test_msg, None)?;
+    let response_serial = rpc_con.send_message(&mut test_msg, Timeout::Infinite)?;
 
     println!("\n");
     println!("Wait for connect");
-    let msg = rpc_con.wait_response(response_serial, None)?;
+    let msg = rpc_con.wait_response(response_serial, Timeout::Infinite)?;
     println!("Got response: {:?}", msg);
 
     Ok(())
