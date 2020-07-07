@@ -1,4 +1,5 @@
-use std::fs::File;
+//use std::fs::File;
+use std::process::Stdio;
 use std::os::unix::io::FromRawFd;
 use std::time::Duration;
 use std::collections::HashMap;
@@ -13,7 +14,7 @@ mod dbus_helpers;
 use dbus_helpers::{
     unwrap_base, unwrap_bool, 
     unwrap_container, unwrap_dict, 
-    unwrap_objectpath, unwrap_string,
+    unwrap_objectpath, unwrap_string, unwrap_u16,
     unwrap_variant, get_name_owner, register_agent,
 };
 //idea:
@@ -46,8 +47,6 @@ impl BleBuilder {
         let param = reply.params.pop().unwrap();
         let container = unwrap_base(param).unwrap();
         let conn_name = unwrap_string(container).unwrap();
-        
-        dbg!(&conn_name);
 
         Ok(BleBuilder {
             conn_name,
@@ -64,7 +63,6 @@ impl BleBuilder {
         let msg = self.connection
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
-        dbg!(msg);
 
         /*let mut message = request_name("/test/hoi".to_owned(), DBUS_NAME_FLAG_REPLACE_EXISTING);
         let response_serial = self
@@ -81,8 +79,6 @@ impl BleBuilder {
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
 
-        //let mut message = 
-        dbg!(msg);
 
         let BleBuilder {
             conn_name,
@@ -119,7 +115,9 @@ impl Ble {
             .build();
 
         let response_serial = self.connection.send_message(&mut connect, TIMEOUT)?;
-        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
+        let msg = self.connection
+            .wait_response(response_serial, TIMEOUT)
+            .map_err(|_| Error::CouldNotConnectToDevice)?;
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
@@ -203,7 +201,7 @@ impl Ble {
         &mut self,
         adress: impl Into<String>,
         uuid: impl AsRef<str>,
-    ) -> Result<File, Error> {
+    ) -> Result<os_pipe::PipeReader, Error> {
         let char_path = self
             .path_for_char(adress, uuid)?
             .ok_or(Error::CharacteristicNotFound)?;
@@ -243,9 +241,17 @@ impl Ble {
             _ => Err(Error::UnexpectedDbusReply)?,
         }
 
-        let message::Message { mut raw_fds, .. } = reply;
+        let message::Message {mut params, mut raw_fds, ..} = reply;
+        //let fd = 
+        let mtu = params.pop().ok_or(Error::UnexpectedDbusReply)?;
+        let mtu = unwrap_base(mtu).ok_or(Error::UnexpectedDbusReply)?;
+        let mtu = unwrap_u16(mtu).ok_or(Error::UnexpectedDbusReply)?;
+        dbg!(mtu);
+        
+        dbg!(params);
         let raw_fd = raw_fds.pop().ok_or(Error::NoFdReturned)?;
-        let file = unsafe { File::from_raw_fd(raw_fd) };
+        dbg!(&raw_fd);
+        let file = unsafe { os_pipe::PipeReader::from_raw_fd(raw_fd) };
         Ok(file)
     }
 

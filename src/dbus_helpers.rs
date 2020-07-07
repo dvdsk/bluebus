@@ -26,6 +26,14 @@ pub fn unwrap_bool(base: params::Base)
     }
 } 
 
+pub fn unwrap_u16(base: params::Base)
+ -> Option<u16> {
+    match base {
+        params::Base::Uint16(b) => Some(b),
+        _ => None,
+    }
+} 
+
 pub fn unwrap_objectpath<'a, 'e>(tup: (params::Base, params::Param<'a, 'e>))
  -> Option<(String,params::Param<'a, 'e>)> { 
     let (base, param) = tup;

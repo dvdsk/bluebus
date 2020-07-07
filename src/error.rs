@@ -6,7 +6,8 @@ pub enum Error {
     RustbusError(rustbus::Error),
     DbusConnectionError(rustbus::client_conn::Error),
     DBusUnMashallError(rustbus::wire::unmarshal::Error),
-    CouldNotConnect(String),
+    CouldNotConnectToDevice,
+    CouldNotConnectToBus(String),
     UuidNotFound,
     DeviceNotFound,
     CharacteristicNotFound,
@@ -29,7 +30,7 @@ impl From<rustbus::client_conn::Error> for Error {
 // //TODO differentiate timeout here
 impl From<rustbus::message_builder::MarshalledMessage> for Error {
     fn from(msg: rustbus::message_builder::MarshalledMessage) -> Error {
-        Error::CouldNotConnect(format!("{:?}",msg.unmarshall_all()))
+        Error::CouldNotConnectToBus(format!("{:?}",msg.unmarshall_all()))
     }
 }
 
