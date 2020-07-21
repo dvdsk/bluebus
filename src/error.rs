@@ -13,6 +13,13 @@ pub enum Error {
     CharacteristicNotFoundCauseUnconnected,
     NoFdReturned,
     UnexpectedDbusReply,
+    CouldNotRemoveCache(std::io::Error),
+}
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Error {
+        Error::CouldNotRemoveCache(err)
+    }
 }
 
 impl From<rustbus::wire::unmarshal::Error> for Error {
@@ -43,28 +50,6 @@ pub enum ErrorContext {
     AquireNotify(String),
 }
 
-/*fn ble_is_connected(object_path: String) -> Result<bool, Error> {
-    let adress = object_path.split("dev_").nth(0)
-        .expect("malformed object path");
-    let adress = (&adress[..16]).to_owned().replace(":","_");
-
-    let mut ble = BleBuilder::new().unwrap().build().unwrap();
-    ble.is_connected(adress)
-}*/
-
-pub fn to_error<'a,'e>(msg: Message<'a,'e>, context: ErrorContext) -> Error {
+pub fn to_error<'a,'e>(_: Message<'a,'e>, _: ErrorContext) -> Error {
     Error::CharacteristicNotFound
-    /*match context {
-        ErrorContext::AquireNotify(object_path) => {
-            if msg.error_name == Some("org.freedesktop.DBus.Error.UnknownMethod".to_owned()) {
-                if !ble_is_connected(object_path).unwrap_or(true) {
-                    Error::CharacteristicNotFoundCauseUnconnected
-                } else {
-                    Error::CharacteristicNotFound
-                }
-            } else {
-                Error::UnexpectedDbusReply
-            }
-        }
-    }*/
 }

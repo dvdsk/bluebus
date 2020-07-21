@@ -19,6 +19,8 @@ use dbus_helpers::{
 };
 use rustbus::wire::marshal::traits::ObjectPath;
 
+pub mod util;
+
 //idea:
 // -simple, no auth or pairing supported
 // no need to explicitly connect
@@ -192,6 +194,66 @@ impl Ble {
             _ => {
                 let dbg_str = format!(
                     "Remove can only be awnserd 
+                    with Error or Reply however we got: {:?}",
+                    &msg
+                );
+                dbg!(&dbg_str);
+                panic!();
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn start_discovery(&mut self) -> Result<(), Error> {
+        let mut remove = MessageBuilder::new()
+            .call("StartDiscovery".into())
+            .at("org.bluez".into())
+            .on(format!(
+                "/org/bluez/hci{}",
+                self.adapter_numb
+            ))
+            .with_interface("org.bluez.Adapter1".into()) //is always Device1
+            .build();
+        
+        let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
+        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
+
+        match msg.typ {
+            rustbus::MessageType::Reply => Ok(()),
+            rustbus::MessageType::Error => Err(Error::from(msg)),
+            _ => {
+                let dbg_str = format!(
+                    "StartDiscovery can only be awnserd 
+                    with Error or Reply however we got: {:?}",
+                    &msg
+                );
+                dbg!(&dbg_str);
+                panic!();
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn stop_discovery(&mut self) -> Result<(), Error> {
+        let mut remove = MessageBuilder::new()
+            .call("StopDiscovery".into())
+            .at("org.bluez".into())
+            .on(format!(
+                "/org/bluez/hci{}",
+                self.adapter_numb
+            ))
+            .with_interface("org.bluez.Adapter1".into()) //is always Device1
+            .build();
+        
+        let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
+        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
+
+        match msg.typ {
+            rustbus::MessageType::Reply => Ok(()),
+            rustbus::MessageType::Error => Err(Error::from(msg)),
+            _ => {
+                let dbg_str = format!(
+                    "StopDiscovery can only be awnserd 
                     with Error or Reply however we got: {:?}",
                     &msg
                 );

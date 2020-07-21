@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use rustbus::{get_system_bus_path, MessageBuilder, Conn, RpcConn, standard_messages};
 use rustbus::client_conn::Timeout;
 
