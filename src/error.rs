@@ -1,5 +1,4 @@
 use rustbus::params::message::Message;
-use super::BleBuilder;
 
 #[derive(Debug)]
 pub enum Error {

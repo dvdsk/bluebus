@@ -1,5 +1,5 @@
 //use std::fs::File;
-use std::process::Stdio;
+use std::fs::File;
 use std::os::unix::io::FromRawFd;
 use std::time::Duration;
 use std::collections::HashMap;
@@ -17,6 +17,8 @@ use dbus_helpers::{
     unwrap_objectpath, unwrap_string, unwrap_u16,
     unwrap_variant, get_name_owner, register_agent,
 };
+use rustbus::wire::marshal::traits::ObjectPath;
+
 //idea:
 // -simple, no auth or pairing supported
 // no need to explicitly connect
@@ -167,6 +169,39 @@ impl Ble {
     }
 
     #[allow(dead_code)]
+    pub fn remove(&mut self, adress: impl Into<String>) -> Result<(), Error> {
+        let object_path = format!("/org/bluez/hci0/dev_{}", adress.into().replace(":", "_"));
+        let object_path = ObjectPath::new(&object_path).unwrap();
+        let mut remove = MessageBuilder::new()
+            .call("RemoveDevice".into())
+            .at("org.bluez".into())
+            .on(format!(
+                "/org/bluez/hci{}",
+                self.adapter_numb
+            ))
+            .with_interface("org.bluez.Adapter1".into()) //is always Device1
+            .build();
+            remove.body.push_param(object_path)?;
+        
+        let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
+        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
+
+        match msg.typ {
+            rustbus::MessageType::Reply => Ok(()),
+            rustbus::MessageType::Error => Err(Error::from(msg)),
+            _ => {
+                let dbg_str = format!(
+                    "Remove can only be awnserd 
+                    with Error or Reply however we got: {:?}",
+                    &msg
+                );
+                dbg!(&dbg_str);
+                panic!();
+            }
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn is_connected(&mut self, adress: impl Into<String>) -> Result<bool, Error> {
         let adress = adress.into().replace(":", "_");
         let mut is_connected = MessageBuilder::new()
@@ -201,7 +236,7 @@ impl Ble {
         &mut self,
         adress: impl Into<String>,
         uuid: impl AsRef<str>,
-    ) -> Result<os_pipe::PipeReader, Error> {
+    ) -> Result<File, Error> {
         let char_path = self
             .path_for_char(adress, uuid)?
             .ok_or(Error::CharacteristicNotFound)?;
@@ -251,7 +286,7 @@ impl Ble {
         dbg!(params);
         let raw_fd = raw_fds.pop().ok_or(Error::NoFdReturned)?;
         dbg!(&raw_fd);
-        let file = unsafe { os_pipe::PipeReader::from_raw_fd(raw_fd) };
+        let file = unsafe { File::from_raw_fd(raw_fd) };
         Ok(file)
     }
 
