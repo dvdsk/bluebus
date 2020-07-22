@@ -1,5 +1,6 @@
 use rustbus;
 use rustbus::{MessageBuilder, params, params::Param, message_builder::MarshalledMessage};
+use rustbus::signature;
 use crate::error::Error;
 
 pub fn unwrap_variant<'e, 'a>(container: params::Container<'e, 'a>)
@@ -104,4 +105,15 @@ pub fn register_agent(obj_path: &str, capability: &str)
 
     msg.body.push_old_params(&vec![param1, param2])?;
     Ok(msg)
+}
+
+pub fn vec_to_param<'a, 'e>(vec: Vec<u8>) -> rustbus::params::Param<'a, 'e> {
+    let array = rustbus::params::Array {
+        element_sig: signature::Type::Base(signature::Base::Byte), 
+        values: vec.into_iter().map(|b| Param::Base(params::Base::Byte(b))).collect()
+    };
+
+    let container = params::Container::Array(array);
+    let param = Param::Container(container);
+    param
 }

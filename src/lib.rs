@@ -11,12 +11,7 @@ mod error;
 mod experiments;
 use error::{to_error, Error, ErrorContext};
 mod dbus_helpers;
-use dbus_helpers::{
-    unwrap_base, unwrap_bool, 
-    unwrap_container, unwrap_dict, 
-    unwrap_objectpath, unwrap_string, unwrap_u16,
-    unwrap_variant, unwrap_array, get_name_owner, register_agent,
-};
+use dbus_helpers::*;
 use rustbus::wire::marshal::traits::ObjectPath;
 
 pub mod util;
@@ -311,13 +306,7 @@ impl Ble {
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
         
-        let dic = params::Dict {
-            key_sig: rustbus::signature::Base::String, 
-            value_sig: rustbus::signature::Type::Container(rustbus::signature::Container::Variant), 
-            map: HashMap::new()
-        };
-        let dic = rustbus::params::Container::Dict(dic);
-        let param = rustbus::params::Param::Container(dic);
+        let param = empty_options_param();
         read.body.push_old_param(&param)?;
         
         let response_serial = self.connection.send_message(&mut read, TIMEOUT)?;
@@ -346,6 +335,45 @@ impl Ble {
     }
 
     #[allow(dead_code)]
+    pub fn write(
+        &mut self,
+        adress: impl Into<String>,
+        uuid: impl AsRef<str>,
+        data: Vec<u8>
+    ) -> Result<(), Error> {
+        
+        let char_path = self
+            .path_for_char(adress, uuid)?
+            .ok_or(Error::CharacteristicNotFound)?;
+
+        let mut write = MessageBuilder::new()
+            .call("WriteValue".into())
+            .at("org.bluez".into())
+            .on(char_path.clone())
+            .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
+            .build();
+        
+        let options = empty_options_param();
+        write.body.push_param(data.as_slice())?;
+        write.body.push_old_param(&options)?;
+
+        let response_serial = self.connection.send_message(&mut write, TIMEOUT)?;
+        let reply = self.connection
+            .wait_response(response_serial, TIMEOUT)?
+            .unmarshall_all()?;
+
+        match &reply.typ {
+            rustbus::MessageType::Error => {
+                dbg!(&reply);
+                return Err(to_error(reply, ErrorContext::WriteValue(char_path)))
+            }
+            rustbus::MessageType::Reply => (),
+            _ => Err(Error::UnexpectedDbusReply)?,
+        }
+        Ok(())
+    }
+
+    #[allow(dead_code)]
     pub fn notify(
         &mut self,
         adress: impl Into<String>,
@@ -362,16 +390,8 @@ impl Ble {
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
         
-        
-        let dic = params::Dict {
-            key_sig: rustbus::signature::Base::String, 
-            value_sig: rustbus::signature::Type::Container(rustbus::signature::Container::Variant), 
-            map: HashMap::new()
-        };
-        let dic = rustbus::params::Container::Dict(dic);
-        let param = rustbus::params::Param::Container(dic);
+        let param = empty_options_param();
         aquire_notify.body.push_old_param(&param)?;
-        //aquire_notify.body.push_param(dic);
         dbg!(&aquire_notify);
 
         let response_serial = self.connection.send_message(&mut aquire_notify, TIMEOUT)?;
@@ -459,4 +479,15 @@ impl Ble {
         }
         Ok(None)
     }
+}
+
+fn empty_options_param<'a, 'e>() -> rustbus::params::Param<'a, 'e> {
+    let dic = params::Dict {
+        key_sig: rustbus::signature::Base::String, 
+        value_sig: rustbus::signature::Type::Container(rustbus::signature::Container::Variant), 
+        map: HashMap::new()
+    };
+    let dic = rustbus::params::Container::Dict(dic);
+    let param = rustbus::params::Param::Container(dic);
+    param
 }
