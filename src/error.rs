@@ -48,6 +48,7 @@ impl From<rustbus::Error> for Error {
 
 pub enum ErrorContext {
     AquireNotify(String),
+    ReadValue(String),
 }
 
 pub fn to_error<'a,'e>(_: Message<'a,'e>, _: ErrorContext) -> Error {

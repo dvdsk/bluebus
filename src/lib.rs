@@ -15,7 +15,7 @@ use dbus_helpers::{
     unwrap_base, unwrap_bool, 
     unwrap_container, unwrap_dict, 
     unwrap_objectpath, unwrap_string, unwrap_u16,
-    unwrap_variant, get_name_owner, register_agent,
+    unwrap_variant, unwrap_array, get_name_owner, register_agent,
 };
 use rustbus::wire::marshal::traits::ObjectPath;
 
@@ -294,6 +294,58 @@ impl Ble {
     }
 
     #[allow(dead_code)]
+    pub fn read(
+        &mut self,
+        adress: impl Into<String>,
+        uuid: impl AsRef<str>,
+    ) -> Result<Vec<u8>, Error> {
+        
+        let char_path = self
+            .path_for_char(adress, uuid)?
+            .ok_or(Error::CharacteristicNotFound)?;
+
+        let mut read = MessageBuilder::new()
+            .call("ReadValue".into())
+            .at("org.bluez".into())
+            .on(char_path.clone())
+            .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
+            .build();
+        
+        let dic = params::Dict {
+            key_sig: rustbus::signature::Base::String, 
+            value_sig: rustbus::signature::Type::Container(rustbus::signature::Container::Variant), 
+            map: HashMap::new()
+        };
+        let dic = rustbus::params::Container::Dict(dic);
+        let param = rustbus::params::Param::Container(dic);
+        read.body.push_old_param(&param)?;
+        
+        let response_serial = self.connection.send_message(&mut read, TIMEOUT)?;
+        let reply = self.connection
+            .wait_response(response_serial, TIMEOUT)?
+            .unmarshall_all()?;
+
+        match &reply.typ {
+            rustbus::MessageType::Error => {
+                return Err(to_error(reply, ErrorContext::ReadValue(char_path)))
+            }
+            rustbus::MessageType::Reply => (),
+            _ => Err(Error::UnexpectedDbusReply)?,
+        }
+
+        let mut params = reply.params;
+        let param = params.pop().ok_or(Error::UnexpectedDbusReply)?;
+        let container = unwrap_container(param).ok_or(Error::UnexpectedDbusReply)?;
+        let array = unwrap_array(container).ok_or(Error::UnexpectedDbusReply)?;
+        
+        let data: Vec<u8> = array.values.into_iter()
+            .map(|param| param.into_byte())
+            .collect::<Result<Vec<u8>, _>>()
+            .map_err(|_| Error::UnexpectedDbusReply)?;
+        Ok(data)
+    }
+
+    #[allow(dead_code)]
     pub fn notify(
         &mut self,
         adress: impl Into<String>,
@@ -318,8 +370,6 @@ impl Ble {
         };
         let dic = rustbus::params::Container::Dict(dic);
         let param = rustbus::params::Param::Container(dic);
-        //let dict = params::Container::Dict()
-        //let test = HashMap::new::<params::Base::String, params::Variant>();
         aquire_notify.body.push_old_param(&param)?;
         //aquire_notify.body.push_param(dic);
         dbg!(&aquire_notify);
@@ -339,7 +389,6 @@ impl Ble {
         }
 
         let message::Message {mut params, mut raw_fds, ..} = reply;
-        //let fd = 
         let mtu = params.pop().ok_or(Error::UnexpectedDbusReply)?;
         let mtu = unwrap_base(mtu).ok_or(Error::UnexpectedDbusReply)?;
         let mtu = unwrap_u16(mtu).ok_or(Error::UnexpectedDbusReply)?;
@@ -402,7 +451,7 @@ impl Ble {
             let uuid = unwrap_variant(uuid).unwrap();
             let uuid = uuid.value;
             let uuid = unwrap_base(uuid).unwrap();
-            let uuid = dbg!(unwrap_string(uuid).unwrap());
+            let uuid = unwrap_string(uuid).unwrap();
 
             if &uuid == char_uuid.as_ref() {
                 return Ok(Some(path));

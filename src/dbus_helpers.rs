@@ -10,6 +10,14 @@ pub fn unwrap_variant<'e, 'a>(container: params::Container<'e, 'a>)
    }
 }
 
+pub fn unwrap_array<'e, 'a>(container: params::Container<'e, 'a>)
+-> Option<params::Array<'e, 'a>> {
+    match container {
+        params::Container::Array(a) => Some(a),
+        _ => None,
+    }
+}
+
 pub fn unwrap_string(base: params::Base)
  -> Option<String> {
     match base {
