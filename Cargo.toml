@@ -1,6 +1,6 @@
 [package]
-name = "ble_central"
-version = "0.1.0"
+name = "bluebus"
+version = "0.2.0"
 authors = ["dskleingeld <11743287+dskleingeld@users.noreply.github.com>"]
 edition = "2018"
 
