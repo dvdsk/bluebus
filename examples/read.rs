@@ -7,6 +7,8 @@ fn main() {
     ble.connect(DEVICE_ADDRESS).unwrap();
     dbg!(ble.is_connected(DEVICE_ADDRESS).unwrap());
 
-    let data = ble.read(DEVICE_ADDRESS, "93700002-1bb7-1599-985b-f5e7dc991483").unwrap();
+    let data = ble
+        .read(DEVICE_ADDRESS, "93700002-1bb7-1599-985b-f5e7dc991483")
+        .unwrap();
     dbg!(data);
 }

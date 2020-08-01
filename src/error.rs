@@ -68,7 +68,7 @@ pub fn to_error(mut msg: Message) -> Error {
             "Invalid Length" => return Error::InvalidLength,
             _ => (),
         }
-    } 
+    }
     if let Some(error_name) = &msg.dynheader.error_name {
         match error_name.as_str() {
             "org.bluez.Error.AuthenticationFailed" => return Error::AuthenticationFailed,

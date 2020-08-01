@@ -1,13 +1,13 @@
 //use std::fs::File;
+use std::collections::HashMap;
 use std::fs::File;
 use std::os::unix::io::FromRawFd;
 use std::time::Duration;
-use std::collections::HashMap;
 
 use rustbus::client_conn::Timeout;
+use rustbus::message_builder::MarshalledMessage;
 use rustbus::params::message;
-use rustbus::{params, get_system_bus_path, standard_messages, Conn, MessageBuilder, RpcConn};
-use rustbus::{message_builder::MarshalledMessage};
+use rustbus::{get_system_bus_path, params, standard_messages, Conn, MessageBuilder, RpcConn};
 mod error;
 use error::{to_error, Error};
 pub mod dbus_helpers;
@@ -21,7 +21,7 @@ const TIMEOUT: Timeout = Timeout::Duration(Duration::from_secs(5));
 pub struct BleBuilder {
     connection: RpcConn,
     adapter_numb: u8,
-    conn_name: String
+    conn_name: String,
 }
 
 impl BleBuilder {
@@ -30,8 +30,11 @@ impl BleBuilder {
         let con = Conn::connect_to_bus(session_path, true)?;
         let mut connection = RpcConn::new(con);
         // send the obligatory hello message
-        let response_serial = connection.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
-        let mut reply = connection.wait_response(response_serial, TIMEOUT)?.unmarshall_all()?;
+        let response_serial =
+            connection.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
+        let mut reply = connection
+            .wait_response(response_serial, TIMEOUT)?
+            .unmarshall_all()?;
         let param = reply.params.pop().unwrap();
         let container = unwrap_base(param).unwrap();
         let conn_name = unwrap_string(container).unwrap();
@@ -45,35 +48,34 @@ impl BleBuilder {
 
     pub fn build(mut self) -> Result<Ble, Error> {
         let mut message = get_name_owner("org.bluez".to_owned())?;
-        let response_serial = self
+        let response_serial = self.connection.send_message(&mut message, TIMEOUT)?;
+        let msg = self
             .connection
-            .send_message(&mut message, TIMEOUT)?;
-        let msg = self.connection
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
         dbg!(msg);
 
         let mut message = standard_messages::request_name(
-            "org.bluebus".to_owned(), 
-            standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING);
-        let response_serial = self
+            "org.bluebus".to_owned(),
+            standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
+        );
+        let response_serial = self.connection.send_message(&mut message, TIMEOUT)?;
+        let msg = self
             .connection
-            .send_message(&mut message, TIMEOUT)?;
-        let msg = self.connection
             .wait_response(response_serial, TIMEOUT)?
-            .unmarshall_all().unwrap();
+            .unmarshall_all()
+            .unwrap();
         dbg!(msg);
 
         let mut message = register_agent("/bluebus/agent", "KeyboardDisplay").unwrap();
-        let response_serial = self
+        let response_serial = self.connection.send_message(&mut message, TIMEOUT).unwrap();
+        let msg = self
             .connection
-            .send_message(&mut message, TIMEOUT).unwrap();
-        let msg = self.connection
-            .wait_response(response_serial, TIMEOUT).unwrap()
-            .unmarshall_all().unwrap();
+            .wait_response(response_serial, TIMEOUT)
+            .unwrap()
+            .unmarshall_all()
+            .unwrap();
         dbg!(msg);
-
-        //dbg!(self.connection.wait_call(Timeout::Infinite)).unwrap();
 
         let BleBuilder {
             conn_name,
@@ -110,7 +112,8 @@ impl Ble {
             .build();
 
         let response_serial = self.connection.send_message(&mut connect, TIMEOUT)?;
-        let msg = self.connection
+        let msg = self
+            .connection
             .wait_response(response_serial, TIMEOUT)
             .map_err(|_| Error::CouldNotConnectToDevice)?;
 
@@ -134,7 +137,9 @@ impl Ble {
         let mut response = messg.unmarshall_all().unwrap().make_response();
         response.body.push_param(passkey).unwrap();
         dbg!(&response);
-        self.connection.send_message(&mut response, TIMEOUT).unwrap();
+        self.connection
+            .send_message(&mut response, TIMEOUT)
+            .unwrap();
     }
 
     #[allow(dead_code)]
@@ -151,8 +156,7 @@ impl Ble {
             .with_interface("org.bluez.Device1".into()) //is always Device1
             .build();
 
-        let response_serial = self.connection
-            .send_message(&mut connect, TIMEOUT).unwrap();
+        let response_serial = self.connection.send_message(&mut connect, TIMEOUT).unwrap();
 
         loop {
             let messg = self.connection.wait_call(Timeout::Infinite).unwrap();
@@ -162,8 +166,10 @@ impl Ble {
             }
         }
 
-        let msg = self.connection
-            .wait_response(response_serial, TIMEOUT).unwrap();
+        let msg = self
+            .connection
+            .wait_response(response_serial, TIMEOUT)
+            .unwrap();
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
@@ -219,14 +225,11 @@ impl Ble {
         let mut remove = MessageBuilder::new()
             .call("RemoveDevice".into())
             .at("org.bluez".into())
-            .on(format!(
-                "/org/bluez/hci{}",
-                self.adapter_numb
-            ))
+            .on(format!("/org/bluez/hci{}", self.adapter_numb))
             .with_interface("org.bluez.Adapter1".into()) //is always Device1
             .build();
-            remove.body.push_param(object_path)?;
-        
+        remove.body.push_param(object_path)?;
+
         let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
         let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
 
@@ -250,13 +253,10 @@ impl Ble {
         let mut remove = MessageBuilder::new()
             .call("StartDiscovery".into())
             .at("org.bluez".into())
-            .on(format!(
-                "/org/bluez/hci{}",
-                self.adapter_numb
-            ))
+            .on(format!("/org/bluez/hci{}", self.adapter_numb))
             .with_interface("org.bluez.Adapter1".into()) //is always Device1
             .build();
-        
+
         let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
         let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
 
@@ -280,13 +280,10 @@ impl Ble {
         let mut remove = MessageBuilder::new()
             .call("StopDiscovery".into())
             .at("org.bluez".into())
-            .on(format!(
-                "/org/bluez/hci{}",
-                self.adapter_numb
-            ))
+            .on(format!("/org/bluez/hci{}", self.adapter_numb))
             .with_interface("org.bluez.Adapter1".into()) //is always Device1
             .build();
-        
+
         let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
         let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
 
@@ -321,7 +318,8 @@ impl Ble {
         is_connected.body.push_param("Connected")?;
 
         let response_serial = self.connection.send_message(&mut is_connected, TIMEOUT)?;
-        let mut reply = self.connection
+        let mut reply = self
+            .connection
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
 
@@ -341,7 +339,6 @@ impl Ble {
         adress: impl Into<String>,
         uuid: impl AsRef<str>,
     ) -> Result<Vec<u8>, Error> {
-        
         let char_path = self
             .path_for_char(adress, uuid)?
             .ok_or(Error::CharacteristicNotFound)?;
@@ -352,19 +349,18 @@ impl Ble {
             .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
-        
+
         let param = empty_options_param();
         read.body.push_old_param(&param)?;
-        
+
         let response_serial = self.connection.send_message(&mut read, TIMEOUT)?;
-        let reply = self.connection
+        let reply = self
+            .connection
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
 
         match &reply.typ {
-            rustbus::MessageType::Error => {
-                return Err(to_error(reply))
-            }
+            rustbus::MessageType::Error => return Err(to_error(reply)),
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
         }
@@ -373,8 +369,10 @@ impl Ble {
         let param = params.pop().ok_or(Error::UnexpectedDbusReply)?;
         let container = unwrap_container(param).ok_or(Error::UnexpectedDbusReply)?;
         let array = unwrap_array(container).ok_or(Error::UnexpectedDbusReply)?;
-        
-        let data: Vec<u8> = array.values.into_iter()
+
+        let data: Vec<u8> = array
+            .values
+            .into_iter()
             .map(|param| param.into_byte())
             .collect::<Result<Vec<u8>, _>>()
             .map_err(|_| Error::UnexpectedDbusReply)?;
@@ -386,9 +384,8 @@ impl Ble {
         &mut self,
         adress: impl Into<String>,
         uuid: impl AsRef<str>,
-        data: Vec<u8>
+        data: Vec<u8>,
     ) -> Result<(), Error> {
-        
         let char_path = self
             .path_for_char(adress, uuid)?
             .ok_or(Error::CharacteristicNotFound)?;
@@ -399,20 +396,21 @@ impl Ble {
             .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
-        
+
         let options = empty_options_param();
         write.body.push_param(data.as_slice())?;
         write.body.push_old_param(&options)?;
 
         let response_serial = self.connection.send_message(&mut write, TIMEOUT)?;
-        let reply = self.connection
+        let reply = self
+            .connection
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
 
         match &reply.typ {
             rustbus::MessageType::Error => {
                 dbg!(&reply);
-                return Err(to_error(reply))
+                return Err(to_error(reply));
             }
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
@@ -436,31 +434,34 @@ impl Ble {
             .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
-        
+
         let param = empty_options_param();
         aquire_notify.body.push_old_param(&param)?;
         dbg!(&aquire_notify);
 
         let response_serial = self.connection.send_message(&mut aquire_notify, TIMEOUT)?;
-        let reply = self.connection
+        let reply = self
+            .connection
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
         dbg!(&reply);
 
         match &reply.typ {
-            rustbus::MessageType::Error => {
-                return Err(to_error(reply))
-            }
+            rustbus::MessageType::Error => return Err(to_error(reply)),
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
         }
 
-        let message::Message {mut params, mut raw_fds, ..} = reply;
+        let message::Message {
+            mut params,
+            mut raw_fds,
+            ..
+        } = reply;
         let mtu = params.pop().ok_or(Error::UnexpectedDbusReply)?;
         let mtu = unwrap_base(mtu).ok_or(Error::UnexpectedDbusReply)?;
         let mtu = unwrap_u16(mtu).ok_or(Error::UnexpectedDbusReply)?;
         dbg!(mtu);
-        
+
         dbg!(params);
         let raw_fd = raw_fds.pop().ok_or(Error::NoFdReturned)?;
         dbg!(&raw_fd);
@@ -481,7 +482,8 @@ impl Ble {
             .build();
 
         let response_serial = self.connection.send_message(&mut get_paths, TIMEOUT)?;
-        let mut reply = self.connection
+        let mut reply = self
+            .connection
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
 
@@ -530,9 +532,9 @@ impl Ble {
 
 fn empty_options_param<'a, 'e>() -> rustbus::params::Param<'a, 'e> {
     let dic = params::Dict {
-        key_sig: rustbus::signature::Base::String, 
-        value_sig: rustbus::signature::Type::Container(rustbus::signature::Container::Variant), 
-        map: HashMap::new()
+        key_sig: rustbus::signature::Base::String,
+        value_sig: rustbus::signature::Type::Container(rustbus::signature::Container::Variant),
+        map: HashMap::new(),
     };
     let dic = rustbus::params::Container::Dict(dic);
     rustbus::params::Param::Container(dic)
