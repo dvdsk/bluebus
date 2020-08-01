@@ -5,7 +5,7 @@ use std::time::Duration;
 const DEVICE_ADDRESS: &'static str = "0A:0A:0A:0A:0A:14";
 
 fn main() {
-    let mut ble = BleBuilder::new().unwrap().build().unwrap();
+    let mut ble = BleBuilder::new().build().unwrap();
     ble.remove(DEVICE_ADDRESS).unwrap();
     ble.remove_attribute_cache(DEVICE_ADDRESS).unwrap();
 

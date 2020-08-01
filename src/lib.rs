@@ -4,7 +4,7 @@ use std::fs::File;
 use std::os::unix::io::FromRawFd;
 use std::time::Duration;
 
-use rustbus::client_conn::Timeout;
+pub use rustbus::client_conn::Timeout;
 use rustbus::message_builder::MarshalledMessage;
 use rustbus::params::message;
 use rustbus::{get_system_bus_path, params, standard_messages, Conn, MessageBuilder, RpcConn};
@@ -16,16 +16,24 @@ use rustbus::wire::marshal::traits::ObjectPath;
 
 pub mod util;
 
-const TIMEOUT: Timeout = Timeout::Duration(Duration::from_secs(5));
-
 pub struct BleBuilder {
-    connection: RpcConn,
     adapter_numb: u8,
-    conn_name: String,
+    timeout: Timeout,
 }
 
 impl BleBuilder {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new() -> Self {
+        BleBuilder {
+            adapter_numb: 0,
+            timeout: Timeout::Duration(Duration::from_secs(5)),
+        }
+    }
+
+    pub fn with_timeout(&mut self, timeout: Timeout) {
+        self.timeout = timeout;
+    }
+
+    pub fn build(self) -> Result<Ble, Error> {
         let session_path = get_system_bus_path()?;
         let con = Conn::connect_to_bus(session_path, true)?;
         let mut connection = RpcConn::new(con);
@@ -33,25 +41,16 @@ impl BleBuilder {
         let response_serial =
             connection.send_message(&mut standard_messages::hello(), Timeout::Infinite)?;
         let mut reply = connection
-            .wait_response(response_serial, TIMEOUT)?
+            .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
         let param = reply.params.pop().unwrap();
         let container = unwrap_base(param).unwrap();
         let conn_name = unwrap_string(container).unwrap();
 
-        Ok(BleBuilder {
-            conn_name,
-            connection,
-            adapter_numb: 0,
-        })
-    }
-
-    pub fn build(mut self) -> Result<Ble, Error> {
         let mut message = get_name_owner("org.bluez".to_owned())?;
-        let response_serial = self.connection.send_message(&mut message, TIMEOUT)?;
-        let msg = self
-            .connection
-            .wait_response(response_serial, TIMEOUT)?
+        let response_serial = connection.send_message(&mut message, self.timeout)?;
+        let msg = connection
+            .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
         dbg!(msg);
 
@@ -59,33 +58,31 @@ impl BleBuilder {
             "org.bluebus".to_owned(),
             standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
         );
-        let response_serial = self.connection.send_message(&mut message, TIMEOUT)?;
-        let msg = self
-            .connection
-            .wait_response(response_serial, TIMEOUT)?
+        let response_serial = connection.send_message(&mut message, self.timeout)?;
+        let msg = connection
+            .wait_response(response_serial, self.timeout)?
             .unmarshall_all()
             .unwrap();
         dbg!(msg);
 
         let mut message = register_agent("/bluebus/agent", "KeyboardDisplay").unwrap();
-        let response_serial = self.connection.send_message(&mut message, TIMEOUT).unwrap();
-        let msg = self
-            .connection
-            .wait_response(response_serial, TIMEOUT)
+        let response_serial = connection.send_message(&mut message, self.timeout).unwrap();
+        let msg = connection
+            .wait_response(response_serial, self.timeout)
             .unwrap()
             .unmarshall_all()
             .unwrap();
         dbg!(msg);
 
         let BleBuilder {
-            conn_name,
-            connection,
             adapter_numb,
+            timeout,
         } = self;
 
         Ok(Ble {
             connection,
             adapter_numb,
+            timeout,
         })
     }
 }
@@ -94,6 +91,7 @@ pub struct Ble {
     //adapter
     connection: RpcConn,
     adapter_numb: u8,
+    timeout: Timeout,
 }
 
 impl Ble {
@@ -111,10 +109,10 @@ impl Ble {
             .with_interface("org.bluez.Device1".into()) //is always Device1
             .build();
 
-        let response_serial = self.connection.send_message(&mut connect, TIMEOUT)?;
+        let response_serial = self.connection.send_message(&mut connect, self.timeout)?;
         let msg = self
             .connection
-            .wait_response(response_serial, TIMEOUT)
+            .wait_response(response_serial, self.timeout)
             .map_err(|_| Error::CouldNotConnectToDevice)?;
 
         match msg.typ {
@@ -132,18 +130,25 @@ impl Ble {
         }
     }
 
-    fn awnser_passkey(&mut self, messg: MarshalledMessage) {
-        let passkey: u32 = 123456;
+    fn awnser_passkey(&mut self, messg: MarshalledMessage, get_key: impl Fn() -> u32) {
+        dbg!();
+        let passkey: u32 = get_key();
+        dbg!(passkey);
         let mut response = messg.unmarshall_all().unwrap().make_response();
         response.body.push_param(passkey).unwrap();
         dbg!(&response);
         self.connection
-            .send_message(&mut response, TIMEOUT)
+            .send_message(&mut response, self.timeout)
             .unwrap();
     }
 
     #[allow(dead_code)]
-    pub fn pair(&mut self, adress: impl Into<String>) -> Result<(), Error> {
+    pub fn pair(
+        &mut self,
+        adress: impl Into<String>,
+        get_key: impl Fn() -> u32,
+        timeout: Duration,
+    ) -> Result<(), Error> {
         let adress = adress.into().replace(":", "_");
 
         let mut connect = MessageBuilder::new()
@@ -156,19 +161,25 @@ impl Ble {
             .with_interface("org.bluez.Device1".into()) //is always Device1
             .build();
 
-        let response_serial = self.connection.send_message(&mut connect, TIMEOUT).unwrap();
-
+        let response_serial = self
+            .connection
+            .send_message(&mut connect, self.timeout)
+            .unwrap();
+        dbg!();
         loop {
-            let messg = self.connection.wait_call(Timeout::Infinite).unwrap();
+            let messg = self
+                .connection
+                .wait_call(Timeout::Duration(timeout))
+                .unwrap();
             if messg.dynheader.member == Some("RequestPasskey".into()) {
-                self.awnser_passkey(messg);
+                self.awnser_passkey(messg, get_key);
                 break;
             }
         }
 
         let msg = self
             .connection
-            .wait_response(response_serial, TIMEOUT)
+            .wait_response(response_serial, self.timeout)
             .unwrap();
 
         match msg.typ {
@@ -200,8 +211,10 @@ impl Ble {
             .with_interface("org.bluez.Device1".into()) //is always Device1
             .build();
 
-        let response_serial = self.connection.send_message(&mut connect, TIMEOUT)?;
-        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
+        let response_serial = self.connection.send_message(&mut connect, self.timeout)?;
+        let msg = self
+            .connection
+            .wait_response(response_serial, self.timeout)?;
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
@@ -230,8 +243,10 @@ impl Ble {
             .build();
         remove.body.push_param(object_path)?;
 
-        let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
-        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
+        let response_serial = self.connection.send_message(&mut remove, self.timeout)?;
+        let msg = self
+            .connection
+            .wait_response(response_serial, self.timeout)?;
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
@@ -257,8 +272,10 @@ impl Ble {
             .with_interface("org.bluez.Adapter1".into()) //is always Device1
             .build();
 
-        let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
-        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
+        let response_serial = self.connection.send_message(&mut remove, self.timeout)?;
+        let msg = self
+            .connection
+            .wait_response(response_serial, self.timeout)?;
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
@@ -284,8 +301,10 @@ impl Ble {
             .with_interface("org.bluez.Adapter1".into()) //is always Device1
             .build();
 
-        let response_serial = self.connection.send_message(&mut remove, TIMEOUT)?;
-        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
+        let response_serial = self.connection.send_message(&mut remove, self.timeout)?;
+        let msg = self
+            .connection
+            .wait_response(response_serial, self.timeout)?;
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
@@ -317,10 +336,12 @@ impl Ble {
         is_connected.body.push_param("org.bluez.Device1")?;
         is_connected.body.push_param("Connected")?;
 
-        let response_serial = self.connection.send_message(&mut is_connected, TIMEOUT)?;
+        let response_serial = self
+            .connection
+            .send_message(&mut is_connected, self.timeout)?;
         let mut reply = self
             .connection
-            .wait_response(response_serial, TIMEOUT)?
+            .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
 
         let param = reply.params.pop().unwrap();
@@ -353,10 +374,10 @@ impl Ble {
         let param = empty_options_param();
         read.body.push_old_param(&param)?;
 
-        let response_serial = self.connection.send_message(&mut read, TIMEOUT)?;
+        let response_serial = self.connection.send_message(&mut read, self.timeout)?;
         let reply = self
             .connection
-            .wait_response(response_serial, TIMEOUT)?
+            .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
 
         match &reply.typ {
@@ -401,10 +422,10 @@ impl Ble {
         write.body.push_param(data.as_slice())?;
         write.body.push_old_param(&options)?;
 
-        let response_serial = self.connection.send_message(&mut write, TIMEOUT)?;
+        let response_serial = self.connection.send_message(&mut write, self.timeout)?;
         let reply = self
             .connection
-            .wait_response(response_serial, TIMEOUT)?
+            .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
 
         match &reply.typ {
@@ -439,10 +460,12 @@ impl Ble {
         aquire_notify.body.push_old_param(&param)?;
         dbg!(&aquire_notify);
 
-        let response_serial = self.connection.send_message(&mut aquire_notify, TIMEOUT)?;
+        let response_serial = self
+            .connection
+            .send_message(&mut aquire_notify, self.timeout)?;
         let reply = self
             .connection
-            .wait_response(response_serial, TIMEOUT)?
+            .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
         dbg!(&reply);
 
@@ -481,10 +504,10 @@ impl Ble {
             .with_interface("org.freedesktop.DBus.ObjectManager".into())
             .build();
 
-        let response_serial = self.connection.send_message(&mut get_paths, TIMEOUT)?;
+        let response_serial = self.connection.send_message(&mut get_paths, self.timeout)?;
         let mut reply = self
             .connection
-            .wait_response(response_serial, TIMEOUT)?
+            .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
 
         let param = reply.params.pop().unwrap();
