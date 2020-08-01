@@ -51,6 +51,7 @@ impl BleBuilder {
         let msg = self.connection
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
+        dbg!(msg);
 
         let mut message = standard_messages::request_name(
             "org.bluebus".to_owned(), 
@@ -60,7 +61,7 @@ impl BleBuilder {
             .send_message(&mut message, TIMEOUT)?;
         let msg = self.connection
             .wait_response(response_serial, TIMEOUT)?
-            .unmarshall_all().unwrap();;
+            .unmarshall_all().unwrap();
         dbg!(msg);
 
         let mut message = register_agent("/bluebus/agent", "KeyboardDisplay").unwrap();
@@ -348,7 +349,7 @@ impl Ble {
         let mut read = MessageBuilder::new()
             .call("ReadValue".into())
             .at("org.bluez".into())
-            .on(char_path.clone())
+            .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
         
@@ -365,7 +366,7 @@ impl Ble {
                 return Err(to_error(reply))
             }
             rustbus::MessageType::Reply => (),
-            _ => Err(Error::UnexpectedDbusReply)?,
+            _ => return Err(Error::UnexpectedDbusReply),
         }
 
         let mut params = reply.params;
@@ -395,7 +396,7 @@ impl Ble {
         let mut write = MessageBuilder::new()
             .call("WriteValue".into())
             .at("org.bluez".into())
-            .on(char_path.clone())
+            .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
         
@@ -414,7 +415,7 @@ impl Ble {
                 return Err(to_error(reply))
             }
             rustbus::MessageType::Reply => (),
-            _ => Err(Error::UnexpectedDbusReply)?,
+            _ => return Err(Error::UnexpectedDbusReply),
         }
         Ok(())
     }
@@ -432,7 +433,7 @@ impl Ble {
         let mut aquire_notify = MessageBuilder::new()
             .call("AcquireNotify".into())
             .at("org.bluez".into())
-            .on(char_path.clone())
+            .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
         
@@ -451,7 +452,7 @@ impl Ble {
                 return Err(to_error(reply))
             }
             rustbus::MessageType::Reply => (),
-            _ => Err(Error::UnexpectedDbusReply)?,
+            _ => return Err(Error::UnexpectedDbusReply),
         }
 
         let message::Message {mut params, mut raw_fds, ..} = reply;
@@ -519,7 +520,7 @@ impl Ble {
             let uuid = unwrap_base(uuid).unwrap();
             let uuid = unwrap_string(uuid).unwrap();
 
-            if &uuid == char_uuid.as_ref() {
+            if uuid == char_uuid.as_ref() {
                 return Ok(Some(path));
             }
         }
@@ -534,6 +535,5 @@ fn empty_options_param<'a, 'e>() -> rustbus::params::Param<'a, 'e> {
         map: HashMap::new()
     };
     let dic = rustbus::params::Container::Dict(dic);
-    let param = rustbus::params::Param::Container(dic);
-    param
+    rustbus::params::Param::Container(dic)
 }

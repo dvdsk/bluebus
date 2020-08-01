@@ -50,18 +50,18 @@ impl From<rustbus::Error> for Error {
     }
 }
 
-pub enum ErrorContext {
+/*pub enum ErrorContext {
     AquireNotify(String),
     ReadValue(String),
     WriteValue(String),
-}
+}*/
 
-fn unpack_msg<'a,'e>(msg: &mut Message<'a,'e>) -> Option<String> {
+fn unpack_msg(msg: &mut Message) -> Option<String> {
     let error_msg = msg.params.pop()?.into_string().ok()?;
     Some(error_msg)
 }
 
-pub fn to_error<'a,'e>(mut msg: Message<'a,'e>) -> Error {
+pub fn to_error(mut msg: Message) -> Error {
     if let Some(error_msg) = unpack_msg(&mut msg) {
         match error_msg.as_str() {
             "Operation is not supported" => return Error::OperationNotSupported,

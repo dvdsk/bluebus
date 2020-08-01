@@ -14,7 +14,7 @@ impl Ble {
             .at("org.bluez".into())
             .build();
 
-        let adapter = format!("org.bluez.Adapter1");
+        let adapter = "org.bluez.Adapter1".to_string();
         get_addr.body.push_param2(adapter, "Address")?;
 
         let response_serial = self.connection.send_message(&mut get_addr, TIMEOUT)?;
