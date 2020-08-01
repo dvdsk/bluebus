@@ -1,4 +1,4 @@
-use ble_central::BleBuilder;
+use bluebus::BleBuilder;
 use std::thread;
 use std::time::Duration;
 

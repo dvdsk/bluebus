@@ -1,7 +1,7 @@
 use std::io;
 use std::time::Duration;
 
-use ble_central::BleBuilder;
+use bluebus::BleBuilder;
 
 const DEVICE_ADDRESS: &'static str = "0A:0A:0A:0A:0A:0A";
 

@@ -1,4 +1,4 @@
-use ble_central::BleBuilder;
+use bluebus::BleBuilder;
 use nix::poll::{poll, PollFd, PollFlags};
 use std::io::prelude::*;
 use std::os::unix::io::AsRawFd;

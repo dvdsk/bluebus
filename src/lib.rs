@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::os::unix::io::FromRawFd;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub use rustbus::client_conn::Timeout;
 use rustbus::message_builder::MarshalledMessage;
@@ -29,8 +29,9 @@ impl BleBuilder {
         }
     }
 
-    pub fn with_timeout(&mut self, timeout: Timeout) {
+    pub fn with_timeout(mut self, timeout: Timeout) -> Self {
         self.timeout = timeout;
+        self
     }
 
     pub fn build(self) -> Result<Ble, Error> {
@@ -166,6 +167,8 @@ impl Ble {
             .send_message(&mut connect, self.timeout)
             .unwrap();
         dbg!();
+        
+        let now = Instant::now();
         loop {
             let messg = self
                 .connection
@@ -173,6 +176,9 @@ impl Ble {
                 .unwrap();
             if messg.dynheader.member == Some("RequestPasskey".into()) {
                 self.awnser_passkey(messg, get_key);
+                break;
+            }
+            if now.elapsed() > timeout {
                 break;
             }
         }
