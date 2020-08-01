@@ -16,6 +16,8 @@ pub enum Error {
     CouldNotRemoveCache(std::io::Error),
     OperationNotSupported,
     InvalidLength,
+    AuthenticationFailed,
+    UnknownErrorMessage(String),
 }
 
 impl From<std::io::Error> for Error {
@@ -38,7 +40,7 @@ impl From<rustbus::client_conn::Error> for Error {
 // //TODO differentiate timeout here
 impl From<rustbus::message_builder::MarshalledMessage> for Error {
     fn from(msg: rustbus::message_builder::MarshalledMessage) -> Error {
-        Error::CouldNotConnectToBus(format!("{:?}",msg.unmarshall_all()))
+        to_error(msg.unmarshall_all().unwrap())
     }
 }
 
@@ -54,21 +56,25 @@ pub enum ErrorContext {
     WriteValue(String),
 }
 
-fn unpack_msg<'a,'e>(mut msg: Message<'a,'e>) -> Option<String> {
+fn unpack_msg<'a,'e>(msg: &mut Message<'a,'e>) -> Option<String> {
     let error_msg = msg.params.pop()?.into_string().ok()?;
     Some(error_msg)
-
 }
 
-
-pub fn to_error<'a,'e>(msg: Message<'a,'e>, _: ErrorContext) -> Error {
-    if let Some(error_msg) = unpack_msg(msg) {
+pub fn to_error<'a,'e>(mut msg: Message<'a,'e>) -> Error {
+    if let Some(error_msg) = unpack_msg(&mut msg) {
         match error_msg.as_str() {
-            "Operation is not supported" => Error::OperationNotSupported,
-            "Invalid Length" => Error::InvalidLength,
-            _ => Error::CharacteristicNotFound,
+            "Operation is not supported" => return Error::OperationNotSupported,
+            "Invalid Length" => return Error::InvalidLength,
+            _ => (),
         }
-    } else {
-        Error::CharacteristicNotFound
+    } 
+    if let Some(error_name) = &msg.dynheader.error_name {
+        match error_name.as_str() {
+            "org.bluez.Error.AuthenticationFailed" => return Error::AuthenticationFailed,
+            _ => (),
+        }
     }
+
+    Error::UnknownErrorMessage(format!("{:?}", msg))
 }

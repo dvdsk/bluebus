@@ -2,7 +2,7 @@ use ble_central::BleBuilder;
 use std::thread;
 use std::time::Duration;
 
-const DEVICE_ADDRESS: &'static str = "0A:0A:0A:0A:0A:0A";
+const DEVICE_ADDRESS: &'static str = "0A:0A:0A:0A:0A:14";
 
 fn main() {
     let mut ble = BleBuilder::new().unwrap().build().unwrap();

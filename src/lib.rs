@@ -7,25 +7,14 @@ use std::collections::HashMap;
 use rustbus::client_conn::Timeout;
 use rustbus::params::message;
 use rustbus::{params, get_system_bus_path, standard_messages, Conn, MessageBuilder, RpcConn};
+use rustbus::{message_builder::MarshalledMessage};
 mod error;
-mod experiments;
-use error::{to_error, Error, ErrorContext};
-mod dbus_helpers;
+use error::{to_error, Error};
+pub mod dbus_helpers;
 use dbus_helpers::*;
 use rustbus::wire::marshal::traits::ObjectPath;
 
 pub mod util;
-
-//idea:
-// -simple, no auth or pairing supported
-// no need to explicitly connect
-// builder pattern, by default pick first adapter (other is extra feature)
-// use "from_raw_fd" for File (write and notify)
-// store opened files in self so we close them on drop
-// builder pattern for all operations
-
-// extra ideas :
-// (safety) disconnect all connected on drop [make builder option?]
 
 const TIMEOUT: Timeout = Timeout::Duration(Duration::from_secs(5));
 
@@ -63,21 +52,27 @@ impl BleBuilder {
             .wait_response(response_serial, TIMEOUT)?
             .unmarshall_all()?;
 
-        /*let mut message = request_name("/test/hoi".to_owned(), DBUS_NAME_FLAG_REPLACE_EXISTING);
-        let response_serial = self
-            .connection
-            .send_message(&mut message, TIMEOUT)?;
-        let msg = self.connection.wait_response(response_serial, TIMEOUT)?;
-        dbg!(msg);*/
-
-        let mut message = register_agent("/test/hoi", "KeyboardDisplay")?;
+        let mut message = standard_messages::request_name(
+            "org.bluebus".to_owned(), 
+            standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING);
         let response_serial = self
             .connection
             .send_message(&mut message, TIMEOUT)?;
         let msg = self.connection
             .wait_response(response_serial, TIMEOUT)?
-            .unmarshall_all()?;
+            .unmarshall_all().unwrap();;
+        dbg!(msg);
 
+        let mut message = register_agent("/bluebus/agent", "KeyboardDisplay").unwrap();
+        let response_serial = self
+            .connection
+            .send_message(&mut message, TIMEOUT).unwrap();
+        let msg = self.connection
+            .wait_response(response_serial, TIMEOUT).unwrap()
+            .unmarshall_all().unwrap();
+        dbg!(msg);
+
+        //dbg!(self.connection.wait_call(Timeout::Infinite)).unwrap();
 
         let BleBuilder {
             conn_name,
@@ -124,6 +119,57 @@ impl Ble {
             _ => {
                 let dbg_str = format!(
                     "Unexpected Dbus message, Connect should only 
+                    be awnserd with Error or Reply however we got: {:?}",
+                    &msg
+                );
+                dbg!(&dbg_str);
+                panic!();
+            }
+        }
+    }
+
+    fn awnser_passkey(&mut self, messg: MarshalledMessage) {
+        let passkey: u32 = 123456;
+        let mut response = messg.unmarshall_all().unwrap().make_response();
+        response.body.push_param(passkey).unwrap();
+        dbg!(&response);
+        self.connection.send_message(&mut response, TIMEOUT).unwrap();
+    }
+
+    #[allow(dead_code)]
+    pub fn pair(&mut self, adress: impl Into<String>) -> Result<(), Error> {
+        let adress = adress.into().replace(":", "_");
+
+        let mut connect = MessageBuilder::new()
+            .call("Pair".into())
+            .at("org.bluez".into())
+            .on(format!(
+                "/org/bluez/hci{}/dev_{}",
+                self.adapter_numb, adress
+            ))
+            .with_interface("org.bluez.Device1".into()) //is always Device1
+            .build();
+
+        let response_serial = self.connection
+            .send_message(&mut connect, TIMEOUT).unwrap();
+
+        loop {
+            let messg = self.connection.wait_call(Timeout::Infinite).unwrap();
+            if messg.dynheader.member == Some("RequestPasskey".into()) {
+                self.awnser_passkey(messg);
+                break;
+            }
+        }
+
+        let msg = self.connection
+            .wait_response(response_serial, TIMEOUT).unwrap();
+
+        match msg.typ {
+            rustbus::MessageType::Reply => Ok(()),
+            rustbus::MessageType::Error => Err(Error::from(msg)),
+            _ => {
+                let dbg_str = format!(
+                    "Unexpected Dbus message, Pair should only 
                     be awnserd with Error or Reply however we got: {:?}",
                     &msg
                 );
@@ -316,7 +362,7 @@ impl Ble {
 
         match &reply.typ {
             rustbus::MessageType::Error => {
-                return Err(to_error(reply, ErrorContext::ReadValue(char_path)))
+                return Err(to_error(reply))
             }
             rustbus::MessageType::Reply => (),
             _ => Err(Error::UnexpectedDbusReply)?,
@@ -365,7 +411,7 @@ impl Ble {
         match &reply.typ {
             rustbus::MessageType::Error => {
                 dbg!(&reply);
-                return Err(to_error(reply, ErrorContext::WriteValue(char_path)))
+                return Err(to_error(reply))
             }
             rustbus::MessageType::Reply => (),
             _ => Err(Error::UnexpectedDbusReply)?,
@@ -402,7 +448,7 @@ impl Ble {
 
         match &reply.typ {
             rustbus::MessageType::Error => {
-                return Err(to_error(reply, ErrorContext::AquireNotify(char_path)))
+                return Err(to_error(reply))
             }
             rustbus::MessageType::Reply => (),
             _ => Err(Error::UnexpectedDbusReply)?,
