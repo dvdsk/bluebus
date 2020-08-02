@@ -8,8 +8,11 @@ pub use rustbus::client_conn::Timeout;
 use rustbus::message_builder::MarshalledMessage;
 use rustbus::params::message;
 use rustbus::{get_system_bus_path, params, standard_messages, Conn, MessageBuilder, RpcConn};
+
 mod error;
-use error::{to_error, Error};
+use error::to_error;
+pub use error::Error;
+
 pub mod dbus_helpers;
 use dbus_helpers::*;
 use rustbus::wire::marshal::traits::ObjectPath;
@@ -167,7 +170,7 @@ impl Ble {
             .send_message(&mut connect, self.timeout)
             .unwrap();
         dbg!();
-        
+
         let now = Instant::now();
         loop {
             let messg = self
