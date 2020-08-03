@@ -414,7 +414,7 @@ impl Ble {
         &mut self,
         adress: impl Into<String>,
         uuid: impl AsRef<str>,
-        data: Vec<u8>,
+        data: impl AsRef<[u8]>,
     ) -> Result<(), Error> {
         let char_path = self
             .path_for_char(adress, uuid)?
@@ -428,7 +428,7 @@ impl Ble {
             .build();
 
         let options = empty_options_param();
-        write.body.push_param(data.as_slice())?;
+        write.body.push_param(data.as_ref())?;
         write.body.push_old_param(&options)?;
 
         let response_serial = self.connection.send_message(&mut write, self.timeout)?;
