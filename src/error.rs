@@ -1,3 +1,4 @@
+use rustbus::message_builder::MarshalledMessage;
 use rustbus::params::message::Message;
 
 #[derive(Debug)]
@@ -14,9 +15,9 @@ pub enum Error {
     NoFdReturned,
     UnexpectedDbusReply,
     CouldNotRemoveCache(std::io::Error),
-    OperationNotSupported,
-    InvalidLength,
-    AuthenticationFailed,
+    OperationNotSupported(Context),
+    InvalidLength(Context),
+    AuthenticationFailed(Context),
     UnknownErrorMessage(String),
 }
 
@@ -37,12 +38,6 @@ impl From<rustbus::client_conn::Error> for Error {
         Error::DbusConnectionError(err)
     }
 }
-// //TODO differentiate timeout here
-impl From<rustbus::message_builder::MarshalledMessage> for Error {
-    fn from(msg: rustbus::message_builder::MarshalledMessage) -> Error {
-        to_error(msg.unmarshall_all().unwrap())
-    }
-}
 
 impl From<rustbus::Error> for Error {
     fn from(err: rustbus::Error) -> Error {
@@ -50,28 +45,55 @@ impl From<rustbus::Error> for Error {
     }
 }
 
-/*pub enum ErrorContext {
+impl From<(MarshalledMessage, Context)> for Error {
+    fn from(err: (MarshalledMessage, Context)) -> Error {
+        let (msg, context) = err;
+        let msg = msg.unmarshall_all().unwrap();
+        error_from(msg, context)
+    }
+}
+
+impl<'a> From<(Message<'a, 'a>, Context)> for Error {
+    fn from(err: (Message<'a, 'a>, Context)) -> Error {
+        let (msg, context) = err;
+        error_from(msg, context)
+    }
+}
+
+
+#[derive(Debug)]
+pub enum Context {
+    Remove,
+    Connect,
+    Disconnect,
+    Pair,
+    StartDiscovery,
+    StopDiscovery,
     AquireNotify(String),
     ReadValue(String),
     WriteValue(String),
-}*/
+}
 
 fn unpack_msg(msg: &mut Message) -> Option<String> {
+
     let error_msg = msg.params.pop()?.into_string().ok()?;
     Some(error_msg)
 }
 
-pub fn to_error(mut msg: Message) -> Error {
+pub fn error_from(mut msg: Message, context: Context) -> Error {
     if let Some(error_msg) = unpack_msg(&mut msg) {
         match error_msg.as_str() {
-            "Operation is not supported" => return Error::OperationNotSupported,
-            "Invalid Length" => return Error::InvalidLength,
+            "Operation is not supported" 
+            => return Error::OperationNotSupported(context),
+            "Invalid Length" 
+            => return Error::InvalidLength(context),
             _ => (),
         }
     }
     if let Some(error_name) = &msg.dynheader.error_name {
         match error_name.as_str() {
-            "org.bluez.Error.AuthenticationFailed" => return Error::AuthenticationFailed,
+            "org.bluez.Error.AuthenticationFailed" 
+            => return Error::AuthenticationFailed(context),
             _ => (),
         }
     }

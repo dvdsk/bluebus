@@ -10,7 +10,7 @@ use rustbus::params::message;
 use rustbus::{get_system_bus_path, params, standard_messages, Conn, MessageBuilder, RpcConn};
 
 mod error;
-use error::to_error;
+use error::Context;
 pub use error::Error;
 
 pub mod dbus_helpers;
@@ -121,7 +121,7 @@ impl Ble {
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
-            rustbus::MessageType::Error => Err(Error::from(msg)),
+            rustbus::MessageType::Error => Err(Error::from((msg, Context::Connect))),
             _ => {
                 let dbg_str = format!(
                     "Unexpected Dbus message, Connect should only 
@@ -193,7 +193,7 @@ impl Ble {
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
-            rustbus::MessageType::Error => Err(Error::from(msg)),
+            rustbus::MessageType::Error => Err(Error::from((msg, Context::Pair))),
             _ => {
                 let dbg_str = format!(
                     "Unexpected Dbus message, Pair should only 
@@ -227,7 +227,7 @@ impl Ble {
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
-            rustbus::MessageType::Error => Err(Error::from(msg)),
+            rustbus::MessageType::Error => Err(Error::from((msg, Context::Disconnect))),
             _ => {
                 let dbg_str = format!(
                     "Connect can only be awnserd 
@@ -259,7 +259,7 @@ impl Ble {
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
-            rustbus::MessageType::Error => Err(Error::from(msg)),
+            rustbus::MessageType::Error => Err(Error::from((msg, Context::Remove))),
             _ => {
                 let dbg_str = format!(
                     "Remove can only be awnserd 
@@ -288,7 +288,7 @@ impl Ble {
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
-            rustbus::MessageType::Error => Err(Error::from(msg)),
+            rustbus::MessageType::Error => Err(Error::from((msg, Context::StartDiscovery))),
             _ => {
                 let dbg_str = format!(
                     "StartDiscovery can only be awnserd 
@@ -317,7 +317,7 @@ impl Ble {
 
         match msg.typ {
             rustbus::MessageType::Reply => Ok(()),
-            rustbus::MessageType::Error => Err(Error::from(msg)),
+            rustbus::MessageType::Error => Err(Error::from((msg, Context::StopDiscovery))),
             _ => {
                 let dbg_str = format!(
                     "StopDiscovery can only be awnserd 
@@ -376,7 +376,7 @@ impl Ble {
         let mut read = MessageBuilder::new()
             .call("ReadValue".into())
             .at("org.bluez".into())
-            .on(char_path)
+            .on(char_path.clone())
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
 
@@ -390,7 +390,7 @@ impl Ble {
             .unmarshall_all()?;
 
         match &reply.typ {
-            rustbus::MessageType::Error => return Err(to_error(reply)),
+            rustbus::MessageType::Error => return Err(Error::from((reply, Context::ReadValue(char_path)))),
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
         }
@@ -423,7 +423,7 @@ impl Ble {
         let mut write = MessageBuilder::new()
             .call("WriteValue".into())
             .at("org.bluez".into())
-            .on(char_path)
+            .on(char_path.clone())
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
 
@@ -440,7 +440,7 @@ impl Ble {
         match &reply.typ {
             rustbus::MessageType::Error => {
                 dbg!(&reply);
-                return Err(to_error(reply));
+                return Err(Error::from((reply, Context::WriteValue(char_path))));
             }
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
@@ -461,7 +461,7 @@ impl Ble {
         let mut aquire_notify = MessageBuilder::new()
             .call("AcquireNotify".into())
             .at("org.bluez".into())
-            .on(char_path)
+            .on(char_path.clone())
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
 
@@ -479,7 +479,8 @@ impl Ble {
         dbg!(&reply);
 
         match &reply.typ {
-            rustbus::MessageType::Error => return Err(to_error(reply)),
+            rustbus::MessageType::Error 
+                => return Err(Error::from((reply, Context::AquireNotify(char_path)))),
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
         }
