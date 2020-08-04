@@ -8,4 +8,5 @@ edition = "2018"
 
 [dependencies]
 rustbus = "0.6.0"
-nix = "0.17.0"
+nix = "0.18.0"
+signal-hook = "0.1.16" # dev only

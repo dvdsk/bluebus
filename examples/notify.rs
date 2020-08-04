@@ -1,8 +1,9 @@
 use bluebus::BleBuilder;
 use nix::poll::{poll, PollFd, PollFlags};
 use std::io::prelude::*;
-use std::os::unix::io::AsRawFd;
+use std::os::unix::io::FromRawFd;
 use std::time::Instant;
+use std::fs::File;
 
 const DEVICE_ADDRESS: &'static str = "0A:0A:0A:0A:0A:0A";
 
@@ -11,7 +12,7 @@ fn main() {
     ble.connect(DEVICE_ADDRESS).unwrap();
     dbg!(ble.is_connected(DEVICE_ADDRESS).unwrap());
 
-    let mut file = ble
+    let mut fd = ble
         .notify(DEVICE_ADDRESS, "93700001-1bb7-1599-985b-f5e7dc991483")
         .unwrap();
 
@@ -20,7 +21,8 @@ fn main() {
 
     let mut buffer = [0u8; 4];
     let mut expected = None;
-    let pollfd = PollFd::new(file.as_raw_fd(), PollFlags::POLLIN);
+    let pollfd = PollFd::new(fd, PollFlags::POLLIN);
+    let mut file = unsafe { File::from_raw_fd(fd) };
     loop {
         if let Err(_) = poll(&mut [pollfd], -1) {
             continue;

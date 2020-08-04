@@ -99,7 +99,7 @@ pub fn register_agent(obj_path: &str, capability: &str) -> Result<MarshalledMess
     Ok(msg)
 }
 
-pub fn vec_to_param<'a, 'e>(vec: Vec<u8>) -> rustbus::params::Param<'a, 'e> {
+/*pub fn vec_to_param<'a, 'e>(vec: Vec<u8>) -> rustbus::params::Param<'a, 'e> {
     let array = rustbus::params::Array {
         element_sig: signature::Type::Base(signature::Base::Byte),
         values: vec
@@ -110,4 +110,4 @@ pub fn vec_to_param<'a, 'e>(vec: Vec<u8>) -> rustbus::params::Param<'a, 'e> {
 
     let container = params::Container::Array(array);
     Param::Container(container)
-}
+}*/
