@@ -9,6 +9,7 @@ pub enum Error {
     CouldNotConnectToDevice,
     CouldNotConnectToBus(String),
     UuidNotFound,
+    DoesNotExist(Context),
     CharacteristicNotFound(Context),
     NoFdReturned,
     UnexpectedDbusReply,
@@ -17,6 +18,12 @@ pub enum Error {
     InvalidLength(Context),
     AuthenticationFailed(Context),
     UnknownErrorMessage(String),
+}
+
+impl PartialEq for Error { //check if same enum variant
+    fn eq(&self, other: &Error) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
 }
 
 impl From<std::io::Error> for Error {
@@ -58,7 +65,7 @@ impl<'a> From<(Message<'a, 'a>, Context)> for Error {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Context {
     Remove,
     Connect,
@@ -87,6 +94,7 @@ pub fn error_from(mut msg: Message, context: Context) -> Error {
     if let Some(error_name) = &msg.dynheader.error_name {
         match error_name.as_str() {
             "org.bluez.Error.AuthenticationFailed" => return Error::AuthenticationFailed(context),
+            "org.bluez.Error.DoesNotExist" => return Error::DoesNotExist(context),
             _ => (),
         }
     }

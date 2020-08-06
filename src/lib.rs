@@ -7,7 +7,7 @@ mod dbus_helpers;
 use dbus_helpers::*;
 
 mod error;
-pub use error::Error;
+pub use error::{Error, Context};
 pub mod operations;
 pub mod util;
 
@@ -48,9 +48,8 @@ impl BleBuilder {
         let msg = connection
             .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
-        dbg!(msg);
 
-        let mut message = standard_messages::request_name(
+        /*let mut message = standard_messages::request_name(
             "org.bluebus".to_owned(),
             standard_messages::DBUS_NAME_FLAG_REPLACE_EXISTING,
         );
@@ -59,7 +58,7 @@ impl BleBuilder {
             .wait_response(response_serial, self.timeout)?
             .unmarshall_all()
             .unwrap();
-        dbg!(msg);
+        dbg!(msg);*/
 
         let mut message = register_agent("/bluebus/agent", "KeyboardDisplay").unwrap();
         let response_serial = connection.send_message(&mut message, self.timeout).unwrap();
@@ -68,7 +67,6 @@ impl BleBuilder {
             .unwrap()
             .unmarshall_all()
             .unwrap();
-        dbg!(msg);
 
         let BleBuilder {
             adapter_numb,

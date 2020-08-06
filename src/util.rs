@@ -1,8 +1,10 @@
 use crate::dbus_helpers::{unwrap_container, unwrap_variant};
 use crate::error::Error;
 use crate::Ble;
+
 use rustbus::MessageBuilder;
 use std::fs::remove_file;
+use std::io::ErrorKind;
 use std::path::PathBuf;
 
 impl Ble {
@@ -34,13 +36,19 @@ impl Ble {
     /// the device from bluez this well make sure all caracteristics are rediscovered
     /// if the device is added again (by connecting). This function will need to run
     /// with superuser privileges.
+    
+    //TODO FIXME does not work?
     pub fn remove_attribute_cache(&mut self, device_mac: &str) -> Result<(), Error> {
         let mut path = PathBuf::from("/var/lib/bluetooth");
         path.push(self.adapter_adress()?);
         path.push("cache");
         path.push(device_mac);
 
-        remove_file(path)?;
+        if let Err(e) = remove_file(path){
+            if e.kind() != ErrorKind::NotFound {
+                return Err(e.into())
+            }
+        }
         Ok(())
     }
 }

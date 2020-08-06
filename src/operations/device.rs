@@ -40,19 +40,15 @@ impl Ble {
                     be awnserd with Error or Reply however we got: {:?}",
                     &msg
                 );
-                dbg!(&dbg_str);
-                panic!();
+                panic!(dbg_str);
             }
         }
     }
 
     fn awnser_passkey(&mut self, messg: MarshalledMessage, get_key: impl Fn() -> u32) {
-        dbg!();
         let passkey: u32 = get_key();
-        dbg!(passkey);
         let mut response = messg.unmarshall_all().unwrap().make_response();
         response.body.push_param(passkey).unwrap();
-        dbg!(&response);
         self.connection
             .send_message(&mut response, self.timeout)
             .unwrap();
@@ -81,7 +77,6 @@ impl Ble {
             .connection
             .send_message(&mut connect, self.timeout)
             .unwrap();
-        dbg!();
 
         let now = Instant::now();
         loop {
@@ -112,8 +107,7 @@ impl Ble {
                     be awnserd with Error or Reply however we got: {:?}",
                     &msg
                 );
-                dbg!(&dbg_str);
-                panic!();
+                panic!(dbg_str);
             }
         }
     }
@@ -179,8 +173,7 @@ impl Ble {
                     with Error or Reply however we got: {:?}",
                     &msg
                 );
-                dbg!(&dbg_str);
-                panic!();
+                panic!(dbg_str);
             }
         }
     }
@@ -211,8 +204,7 @@ impl Ble {
                     with Error or Reply however we got: {:?}",
                     &msg
                 );
-                dbg!(&dbg_str);
-                panic!();
+                panic!(dbg_str);
             }
         }
     }
@@ -240,8 +232,7 @@ impl Ble {
                     with Error or Reply however we got: {:?}",
                     &msg
                 );
-                dbg!(&dbg_str);
-                panic!();
+                panic!(dbg_str);
             }
         }
     }
@@ -269,8 +260,7 @@ impl Ble {
                     with Error or Reply however we got: {:?}",
                     &msg
                 );
-                dbg!(&dbg_str);
-                panic!();
+                panic!(dbg_str);
             }
         }
     }

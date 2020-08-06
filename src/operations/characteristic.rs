@@ -92,7 +92,6 @@ impl Ble {
 
         match &reply.typ {
             rustbus::MessageType::Error => {
-                dbg!(&reply);
                 return Err(Error::from((reply, Context::WriteValue(char_path))));
             }
             rustbus::MessageType::Reply => (),
@@ -122,7 +121,6 @@ impl Ble {
 
         let param = empty_options_param();
         aquire_notify.body.push_old_param(&param)?;
-        dbg!(&aquire_notify);
 
         let response_serial = self
             .connection
@@ -131,7 +129,6 @@ impl Ble {
             .connection
             .wait_response(response_serial, self.timeout)?
             .unmarshall_all()?;
-        dbg!(&reply);
 
         match &reply.typ {
             rustbus::MessageType::Error => {
@@ -149,9 +146,7 @@ impl Ble {
         let mtu = params.pop().ok_or(Error::UnexpectedDbusReply)?;
         let mtu = unwrap_base(mtu).ok_or(Error::UnexpectedDbusReply)?;
         let mtu = unwrap_u16(mtu).ok_or(Error::UnexpectedDbusReply)?;
-        dbg!(mtu);
 
-        dbg!(params);
         let fd = raw_fds.pop().ok_or(Error::NoFdReturned)?;
         //let file = unsafe { File::from_raw_fd(raw_fd) };
         Ok(fd)
