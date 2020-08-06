@@ -5,8 +5,8 @@ pub use rustbus::client_conn::Timeout;
 use rustbus::params::message;
 use rustbus::{params, MessageBuilder};
 
-use crate::error::{Context, Error};
 use crate::dbus_helpers::*;
+use crate::error::{Context, Error};
 use crate::Ble;
 
 impl Ble {
@@ -17,8 +17,10 @@ impl Ble {
         uuid: impl AsRef<str>,
     ) -> Result<Vec<u8>, Error> {
         let char_path = self
-            .path_for_char(adress, uuid)?
-            .ok_or(Error::CharacteristicNotFound)?;
+            .path_for_char(adress, &uuid)?
+            .ok_or(Error::CharacteristicNotFound(Context::ReadValue(
+                uuid.as_ref().to_owned(),
+            )))?;
 
         let mut read = MessageBuilder::new()
             .call("ReadValue".into())
@@ -37,7 +39,9 @@ impl Ble {
             .unmarshall_all()?;
 
         match &reply.typ {
-            rustbus::MessageType::Error => return Err(Error::from((reply, Context::ReadValue(char_path)))),
+            rustbus::MessageType::Error => {
+                return Err(Error::from((reply, Context::ReadValue(char_path))))
+            }
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
         }
@@ -64,8 +68,10 @@ impl Ble {
         data: impl AsRef<[u8]>,
     ) -> Result<(), Error> {
         let char_path = self
-            .path_for_char(adress, uuid)?
-            .ok_or(Error::CharacteristicNotFound)?;
+            .path_for_char(adress, &uuid)?
+            .ok_or(Error::CharacteristicNotFound(Context::WriteValue(
+                uuid.as_ref().to_owned(),
+            )))?;
 
         let mut write = MessageBuilder::new()
             .call("WriteValue".into())
@@ -102,8 +108,10 @@ impl Ble {
         uuid: impl AsRef<str>,
     ) -> Result<RawFd, Error> {
         let char_path = self
-            .path_for_char(adress, uuid)?
-            .ok_or(Error::CharacteristicNotFound)?;
+            .path_for_char(adress, &uuid)?
+            .ok_or(Error::CharacteristicNotFound(Context::AquireNotify(
+                uuid.as_ref().to_owned(),
+            )))?;
 
         let mut aquire_notify = MessageBuilder::new()
             .call("AcquireNotify".into())
@@ -126,8 +134,9 @@ impl Ble {
         dbg!(&reply);
 
         match &reply.typ {
-            rustbus::MessageType::Error 
-                => return Err(Error::from((reply, Context::AquireNotify(char_path)))),
+            rustbus::MessageType::Error => {
+                return Err(Error::from((reply, Context::AquireNotify(char_path))))
+            }
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
         }

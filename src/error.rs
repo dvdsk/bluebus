@@ -9,9 +9,7 @@ pub enum Error {
     CouldNotConnectToDevice,
     CouldNotConnectToBus(String),
     UuidNotFound,
-    DeviceNotFound,
-    CharacteristicNotFound,
-    CharacteristicNotFoundCauseUnconnected,
+    CharacteristicNotFound(Context),
     NoFdReturned,
     UnexpectedDbusReply,
     CouldNotRemoveCache(std::io::Error),
@@ -60,7 +58,6 @@ impl<'a> From<(Message<'a, 'a>, Context)> for Error {
     }
 }
 
-
 #[derive(Debug)]
 pub enum Context {
     Remove,
@@ -75,7 +72,6 @@ pub enum Context {
 }
 
 fn unpack_msg(msg: &mut Message) -> Option<String> {
-
     let error_msg = msg.params.pop()?.into_string().ok()?;
     Some(error_msg)
 }
@@ -83,17 +79,14 @@ fn unpack_msg(msg: &mut Message) -> Option<String> {
 pub fn error_from(mut msg: Message, context: Context) -> Error {
     if let Some(error_msg) = unpack_msg(&mut msg) {
         match error_msg.as_str() {
-            "Operation is not supported" 
-            => return Error::OperationNotSupported(context),
-            "Invalid Length" 
-            => return Error::InvalidLength(context),
+            "Operation is not supported" => return Error::OperationNotSupported(context),
+            "Invalid Length" => return Error::InvalidLength(context),
             _ => (),
         }
     }
     if let Some(error_name) = &msg.dynheader.error_name {
         match error_name.as_str() {
-            "org.bluez.Error.AuthenticationFailed" 
-            => return Error::AuthenticationFailed(context),
+            "org.bluez.Error.AuthenticationFailed" => return Error::AuthenticationFailed(context),
             _ => (),
         }
     }

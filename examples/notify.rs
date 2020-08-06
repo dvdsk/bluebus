@@ -1,9 +1,9 @@
 use bluebus::BleBuilder;
 use nix::poll::{poll, PollFd, PollFlags};
+use std::fs::File;
 use std::io::prelude::*;
 use std::os::unix::io::FromRawFd;
 use std::time::Instant;
-use std::fs::File;
 
 const DEVICE_ADDRESS: &'static str = "0A:0A:0A:0A:0A:0A";
 

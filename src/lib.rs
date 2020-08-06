@@ -8,9 +8,8 @@ use dbus_helpers::*;
 
 mod error;
 pub use error::Error;
-pub mod util;
 pub mod operations;
-
+pub mod util;
 
 pub struct BleBuilder {
     adapter_numb: u8,

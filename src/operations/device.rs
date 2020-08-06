@@ -2,8 +2,8 @@
 use std::time::{Duration, Instant};
 
 pub use rustbus::client_conn::Timeout;
-use rustbus::wire::marshal::traits::ObjectPath;
 use rustbus::message_builder::MarshalledMessage;
+use rustbus::wire::marshal::traits::ObjectPath;
 use rustbus::MessageBuilder;
 
 use crate::dbus_helpers::*;
