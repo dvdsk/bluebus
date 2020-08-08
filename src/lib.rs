@@ -7,7 +7,7 @@ mod dbus_helpers;
 use dbus_helpers::*;
 
 mod error;
-pub use error::{Error, Context};
+pub use error::{Context, Error};
 pub mod operations;
 pub mod util;
 

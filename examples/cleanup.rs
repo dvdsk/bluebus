@@ -1,5 +1,5 @@
 use bluebus::BleBuilder;
-use bluebus::{Error, Context};
+use bluebus::{Context, Error};
 use std::io::ErrorKind;
 use std::thread;
 use std::time::Duration;
@@ -17,17 +17,18 @@ fn main() {
             panic!("error: {:?}", e);
         }
     }
-    
+
     if let Err(e) = ble.remove_attribute_cache(DEVICE_ADDRESS) {
         match e {
-            Error::CouldNotRemoveCache(io_error) => 
+            Error::CouldNotRemoveCache(io_error) => {
                 if io_error.kind() != ErrorKind::NotFound {
                     panic!("io error: {:?}", &io_error);
-                },
+                }
+            }
             _ => panic!("error: {:?}", e),
         }
     }
-    
+
     ble.start_discovery().unwrap();
     while ble.connect(DEVICE_ADDRESS).is_err() {
         println!("could not connect to {}, retrying...", DEVICE_ADDRESS);

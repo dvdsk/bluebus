@@ -40,7 +40,10 @@ impl Ble {
 
         match &reply.typ {
             rustbus::MessageType::Error => {
-                return Err(Error::from((reply, Context::ReadValue(char_path))))
+                return Err(Error::from((
+                    reply,
+                    Context::ReadValue(uuid.as_ref().to_owned()),
+                )))
             }
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
@@ -92,7 +95,10 @@ impl Ble {
 
         match &reply.typ {
             rustbus::MessageType::Error => {
-                return Err(Error::from((reply, Context::WriteValue(char_path))));
+                return Err(Error::from((
+                    reply,
+                    Context::WriteValue(uuid.as_ref().to_owned()),
+                )));
             }
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),
@@ -132,7 +138,10 @@ impl Ble {
 
         match &reply.typ {
             rustbus::MessageType::Error => {
-                return Err(Error::from((reply, Context::AquireNotify(char_path))))
+                return Err(Error::from((
+                    reply,
+                    Context::AquireNotify(uuid.as_ref().to_owned()),
+                )))
             }
             rustbus::MessageType::Reply => (),
             _ => return Err(Error::UnexpectedDbusReply),

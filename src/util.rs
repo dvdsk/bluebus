@@ -36,7 +36,7 @@ impl Ble {
     /// the device from bluez this well make sure all caracteristics are rediscovered
     /// if the device is added again (by connecting). This function will need to run
     /// with superuser privileges.
-    
+
     //TODO FIXME does not work?
     pub fn remove_attribute_cache(&mut self, device_mac: &str) -> Result<(), Error> {
         let mut path = PathBuf::from("/var/lib/bluetooth");
@@ -44,9 +44,9 @@ impl Ble {
         path.push("cache");
         path.push(device_mac);
 
-        if let Err(e) = remove_file(path){
+        if let Err(e) = remove_file(path) {
             if e.kind() != ErrorKind::NotFound {
-                return Err(e.into())
+                return Err(e.into());
             }
         }
         Ok(())

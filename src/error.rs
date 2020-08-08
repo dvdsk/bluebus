@@ -20,7 +20,8 @@ pub enum Error {
     UnknownErrorMessage(String),
 }
 
-impl PartialEq for Error { //check if same enum variant
+impl PartialEq for Error {
+    //check if same enum variant
     fn eq(&self, other: &Error) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(other)
     }
