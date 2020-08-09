@@ -1,5 +1,4 @@
 use crate::error::Error;
-use rustbus::signature;
 use rustbus::{message_builder::MarshalledMessage, params, params::Param, MessageBuilder};
 
 pub fn unwrap_variant<'e, 'a>(

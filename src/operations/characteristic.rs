@@ -18,14 +18,14 @@ impl Ble {
     ) -> Result<Vec<u8>, Error> {
         let char_path = self
             .path_for_char(adress, &uuid)?
-            .ok_or(Error::CharacteristicNotFound(Context::ReadValue(
+            .ok_or_else(|| Error::CharacteristicNotFound(Context::ReadValue(
                 uuid.as_ref().to_owned(),
             )))?;
 
         let mut read = MessageBuilder::new()
             .call("ReadValue".into())
             .at("org.bluez".into())
-            .on(char_path.clone())
+            .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
 
@@ -72,14 +72,14 @@ impl Ble {
     ) -> Result<(), Error> {
         let char_path = self
             .path_for_char(adress, &uuid)?
-            .ok_or(Error::CharacteristicNotFound(Context::WriteValue(
+            .ok_or_else(|| Error::CharacteristicNotFound(Context::WriteValue(
                 uuid.as_ref().to_owned(),
             )))?;
 
         let mut write = MessageBuilder::new()
             .call("WriteValue".into())
             .at("org.bluez".into())
-            .on(char_path.clone())
+            .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
 
@@ -114,14 +114,14 @@ impl Ble {
     ) -> Result<RawFd, Error> {
         let char_path = self
             .path_for_char(adress, &uuid)?
-            .ok_or(Error::CharacteristicNotFound(Context::AquireNotify(
+            .ok_or_else(|| Error::CharacteristicNotFound(Context::AquireNotify(
                 uuid.as_ref().to_owned(),
             )))?;
 
         let mut aquire_notify = MessageBuilder::new()
             .call("AcquireNotify".into())
             .at("org.bluez".into())
-            .on(char_path.clone())
+            .on(char_path)
             .with_interface("org.bluez.GattCharacteristic1".into()) //is always GattCharacteristic1
             .build();
 

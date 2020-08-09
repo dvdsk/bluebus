@@ -10,7 +10,7 @@ use std::os::unix::io::FromRawFd;
 const DEVICE_ADDRESS: &'static str = "0A:0A:0A:0A:0A:0A";
 
 fn main() {
-    let mut ble = BleBuilder::new().build().unwrap();
+    let mut ble = BleBuilder::default().build().unwrap();
     ble.connect(DEVICE_ADDRESS).unwrap();
     dbg!(ble.is_connected(DEVICE_ADDRESS).unwrap());
 

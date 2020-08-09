@@ -54,6 +54,7 @@ impl Ble {
             .unwrap();
     }
 
+    /// This will time out if the device is already paired
     #[allow(dead_code)]
     pub fn pair(
         &mut self,
@@ -116,6 +117,37 @@ impl Ble {
                 panic!(dbg_str);
             }
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn is_paired(&mut self, adress: impl Into<String>) -> Result<bool, Error> {
+        let adress = adress.into().replace(":", "_");
+        let mut is_paired = MessageBuilder::new()
+            .call("Get".into())
+            .at("org.bluez".into())
+            .on(format!(
+                "/org/bluez/hci{}/dev_{}",
+                self.adapter_numb, &adress
+            ))
+            .with_interface("org.freedesktop.DBus.Properties".into())
+            .build();
+        is_paired.body.push_param("org.bluez.Device1")?;
+        is_paired.body.push_param("Paired")?;
+
+        let response_serial = self.connection.send_message(&mut is_paired, self.timeout)?;
+        let mut reply = self
+            .connection
+            .wait_response(response_serial, self.timeout)?
+            .unmarshall_all()?;
+
+        let param = reply.params.pop().unwrap();
+        let container = unwrap_container(param).unwrap();
+        let variant = unwrap_variant(container).unwrap();
+        let param = variant.value;
+        let base = unwrap_base(param).unwrap();
+        let paired = unwrap_bool(base).unwrap();
+
+        Ok(paired)
     }
 
     #[allow(dead_code)]

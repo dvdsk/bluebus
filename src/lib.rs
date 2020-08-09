@@ -16,13 +16,16 @@ pub struct BleBuilder {
     timeout: Timeout,
 }
 
-impl BleBuilder {
-    pub fn new() -> Self {
+impl Default for BleBuilder {
+    fn default() -> Self {
         BleBuilder {
             adapter_numb: 0,
             timeout: Timeout::Duration(Duration::from_secs(5)),
         }
     }
+}
+
+impl BleBuilder {
 
     pub fn with_timeout(mut self, timeout: Timeout) -> Self {
         self.timeout = timeout;

@@ -9,7 +9,7 @@ const DEVICE_ADDRESS: &'static str = "0A:0A:0A:0A:0A:A0";
 //TODO debug!
 
 fn main() {
-    let mut ble = BleBuilder::new().build().unwrap();
+    let mut ble = BleBuilder::default().build().unwrap();
     if let Err(e) = ble.remove(DEVICE_ADDRESS) {
         if e == Error::DoesNotExist(Context::Remove) {
             println!("could not find device, already removed?");
