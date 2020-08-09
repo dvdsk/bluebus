@@ -84,7 +84,10 @@ impl Ble {
                 .connection
                 .wait_call(Timeout::Duration(timeout))
                 .map_err(|e| match e {
-                    rustbus::client_conn::Error::TimedOut => Error::PairingTimeOut,
+                    rustbus::client_conn::Error::TimedOut => {
+                        dbg!("test timeout");
+                        Error::PairingTimeOut
+                    }
                     _ => e.into(),
                 })?;
             if messg.dynheader.member == Some("RequestPasskey".into()) {
