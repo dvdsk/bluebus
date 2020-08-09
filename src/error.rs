@@ -13,6 +13,7 @@ pub enum Error {
     CharacteristicNotFound(Context),
     NoFdReturned,
     UnexpectedDbusReply,
+    PairingTimeOut,
     CouldNotRemoveCache(std::io::Error),
     OperationNotSupported(Context),
     InvalidLength(Context),
