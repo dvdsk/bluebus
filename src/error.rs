@@ -18,6 +18,7 @@ pub enum Error {
     OperationNotSupported(Context),
     InvalidLength(Context),
     AuthenticationFailed(Context),
+    BluezFailed(Context),
     UnknownErrorMessage(String),
 }
 
@@ -97,6 +98,7 @@ pub fn error_from(mut msg: Message, context: Context) -> Error {
         match error_name.as_str() {
             "org.bluez.Error.AuthenticationFailed" => return Error::AuthenticationFailed(context),
             "org.bluez.Error.DoesNotExist" => return Error::DoesNotExist(context),
+            "org.bluez.Error.Failed" => return Error::BluezFailed(context),
             _ => (),
         }
     }
