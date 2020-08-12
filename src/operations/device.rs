@@ -102,7 +102,7 @@ impl Ble {
 
         let msg = self
             .connection
-            .wait_response(response_serial, self.timeout)
+            .wait_response(response_serial, Timeout::Duration(timeout))
             .unwrap();
 
         match msg.typ {
