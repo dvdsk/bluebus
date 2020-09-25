@@ -10,6 +10,10 @@ mod error;
 pub use error::{Context, Error};
 pub mod operations;
 pub mod util;
+// pub re-export third party dependency rustbus 
+// to allow users to access its error types that
+// are exposed by our Error anyway
+pub use rustbus;
 
 pub struct BleBuilder {
     adapter_numb: u8,
