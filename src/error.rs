@@ -17,6 +17,7 @@ pub enum Error {
     CouldNotRemoveCache(std::io::Error),
     OperationNotSupported(Context),
     InvalidLength(Context),
+    AuthenticationCanceled(Context),
     AuthenticationFailed(Context),
     BluezFailed(Context),
     UnknownErrorMessage(String),
@@ -96,6 +97,7 @@ pub fn error_from(mut msg: Message, context: Context) -> Error {
     }
     if let Some(error_name) = &msg.dynheader.error_name {
         match error_name.as_str() {
+            "org.bluez.Error.AuthenticationCanceled" => return Error::AuthenticationCanceled(context),
             "org.bluez.Error.AuthenticationFailed" => return Error::AuthenticationFailed(context),
             "org.bluez.Error.DoesNotExist" => return Error::DoesNotExist(context),
             "org.bluez.Error.Failed" => return Error::BluezFailed(context),
