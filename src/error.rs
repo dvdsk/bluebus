@@ -20,6 +20,7 @@ pub enum Error {
     AuthenticationCanceled(Context),
     AuthenticationFailed(Context),
     BluezFailed(Context),
+    NotPermitted(Context),
     UnknownErrorMessage(String),
 }
 
@@ -101,6 +102,7 @@ pub fn error_from(mut msg: Message, context: Context) -> Error {
             "org.bluez.Error.AuthenticationFailed" => return Error::AuthenticationFailed(context),
             "org.bluez.Error.DoesNotExist" => return Error::DoesNotExist(context),
             "org.bluez.Error.Failed" => return Error::BluezFailed(context),
+            "org.bluez.Error.NotPermitted" => return Error::NotPermitted(context),
             _ => (),
         }
     }
